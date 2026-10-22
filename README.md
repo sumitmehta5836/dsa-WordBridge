@@ -5,6 +5,14 @@
 
 ---
 
+### 👥 Team Members
+* **Prachi Tiwari** (Member 1) — Dictionary Storage, QuickSort & Binary Search
+* **Priyanshu Bisht** (Member 2) — BFS Auto-Solver, Queue & Implicit Graph
+* **Sumit Mehta** (Member 3) — Dual-Stack (Undo/Redo), Hamming Metric & State Engine
+* **Suraj Singh Bisht** (Member 4) — Doubly Linked List Replay Engine & Terminal TUI
+
+---
+
 ## 📌 Project Overview
 WordBridge transforms the classic shortest-path word ladder problem into an interactive, visual console game and algorithmic engine. Players transform a start word into a target word one letter at a time through valid dictionary words, backed by an auto-solver that computes and replays the optimal shortest path.
 
@@ -17,7 +25,7 @@ Everything is implemented **from scratch** using core data structures—no C++ S
 ```text
 wordBridge/
 ├── Makefile                     # Compilation and build configuration
-├── README.md                    # Project documentation & Viva guide
+├── README.md                    # Project documentation
 ├── data/
 │   ├── dictionary.txt           # Master dictionary (33,756 words, 3 to 6 letters)
 │   └── sample_words.txt         # Quick-testing curated subset
@@ -25,13 +33,13 @@ wordBridge/
 │   ├── common.h                 # ANSI styling, color codes, common utilities
 │   ├── dictionary.h             # Module 1: Sorted Array & Binary Search
 │   ├── solver.h                 # Module 2: BFS Auto-Solver & Queue
-│   ├── game.h                   # Module 3: Manual Play State & Undo Stack
+│   ├── game.h                   # Module 3: State Engine, Dual-Stack & Hamming Metric
 │   └── display.h                # Module 4: Doubly Linked List & Terminal UI
 └── src/
     ├── main.c                   # Entry point, menu loop, and module integration
     ├── dictionary.c             # Dynamic array, QuickSort, and O(log N) Binary Search
     ├── solver.c                 # FIFO Queue, BFS traversal, and parent tracking
-    ├── game.c                   # LIFO Stack for undo/redo and move validation
+    ├── game.c                   # Dual-Stack for Undo/Redo, Hamming metric & state machine
     └── display.c                # Doubly Linked List, Wordle-style boxes, and Replay
 ```
 
@@ -39,12 +47,12 @@ wordBridge/
 
 ## 👥 Team Member Roles & DSA Ownership
 
-| Member | Module | Data Structure / Algorithm | Key Functionality |
-| :--- | :--- | :--- | :--- |
-| **Member 1** | **Dictionary & Search** | Sorted Dynamic Array + Binary Search | File I/O, QuickSort, $O(\log N)$ word validation via `dict_binary_search()`. |
-| **Member 2** | **Auto-Solver Engine** | Queue (FIFO) + Implicit Graph BFS | Unweighted shortest path calculation, on-the-fly neighbor generation ($26 \times L$). |
-| **Member 3** | **Manual Play & Undo** | Stack (LIFO) | Move validation (Hamming distance = 1), $O(1)$ push/pop undo mechanics. |
-| **Member 4** | **Replay & UI Engine** | Doubly Linked List + ANSI TUI | $O(1)$ bidirectional step-by-step replay (Next/Prev/Auto-play), telemetry cards. |
+| Member | Name | Module | Data Structure / Algorithm | Key Functionality |
+| :--- | :--- | :--- | :--- | :--- |
+| **Member 1** | **Prachi Tiwari** | **Dictionary & Search** | Sorted Dynamic Array + Binary Search | File I/O, QuickSort, $O(\log N)$ word validation via `dict_binary_search()`. |
+| **Member 2** | **Priyanshu Bisht** | **Auto-Solver Engine** | Queue (FIFO) + Implicit Graph BFS | Unweighted shortest path calculation, on-the-fly neighbor generation ($26 \times L$). |
+| **Member 3** | **Sumit Mehta** | **State Machine & History** | Dual-Stack (Undo/Redo) + Hamming Metric | Dual-stack history machine ($O(1)$ Undo & Redo), formal Hamming Distance metric validation, cycle detection, and real-time efficiency scoring. |
+| **Member 4** | **Suraj Singh Bisht** | **Replay & UI Engine** | Doubly Linked List + ANSI TUI | $O(1)$ bidirectional step-by-step replay (Next/Prev/Auto-play), telemetry cards. |
 
 ---
 
@@ -53,8 +61,9 @@ wordBridge/
 | Operation | Component | Time Complexity | Space Complexity |
 | :--- | :--- | :--- | :--- |
 | **Word Validation** | Binary Search on Sorted Array | $O(\log N)$ | $O(N)$ for dictionary storage |
-| **Undo Last Move** | Custom Stack | $O(1)$ | $O(M)$ moves stored |
-| **BFS Shortest Path** | Queue over Implicit Graph | $O(V + 26 \cdot L \cdot \log N)$ | $O(V)$ visited lookup + queue |
+| **Undo / Redo Move**| Dual-Stack (LIFO) | $O(1)$ push/pop | $O(M)$ moves in stacks |
+| **Cycle Detection** | Stack Traversal | $O(K)$ depth | $O(1)$ auxiliary |
+| **BFS Shortest Path**| Queue over Implicit Graph | $O(V + 26 \cdot L \cdot \log N)$ | $O(V)$ visited lookup + queue |
 | **Bidirectional Replay**| Doubly Linked List | $O(1)$ per step | $O(P)$ solution path nodes |
 
 *(Where $N$ = dictionary size, $L$ = word length, $V$ = reachable words, $M$ = moves made, $P$ = path length).*
@@ -92,8 +101,8 @@ make run
    - Wordle-style letter boxes (`[ C ] [ O ] [ L ] [ D ]`).
    - Dynamic letter highlight showing which character changed.
    - Live comparison against the optimal BFS shortest move count.
-2. **Move Undo Mechanics**:
-   - Revert bad moves at any time using `[U]` (powered by the LIFO Stack).
+2. **Dual-Stack Move History (Undo & Redo)**:
+   - Revert moves with `[U]` and restore moves with `[R]` in $O(1)$ time.
 3. **Smart Hint System**:
    - Stuck? Press `[H]` to query BFS from the current word and reveal only the single next best move.
 4. **Instant Auto-Solver with Algorithm Telemetry**:

@@ -3,7 +3,7 @@
  * WORDBRIDGE: A Word Ladder Puzzle Game with Auto-Solver
  * Subject: Data Structures and Algorithms (DSA)
  * File: include/game.h
- * Module 3 - Member 3: Manual Play & Undo (Stack)
+ * Module 3 - Member 3: Manual Play, Dual-Stack (Undo/Redo) & State Engine
  * ============================================================================
  */
 
@@ -22,7 +22,7 @@ typedef struct StackNode {
 } StackNode;
 
 /**
- * Stack structure implemented from scratch for move history and undo.
+ * Stack structure implemented from scratch for dual-stack (Undo/Redo) history.
  */
 typedef struct {
     StackNode *top;
@@ -30,7 +30,7 @@ typedef struct {
 } Stack;
 
 /**
- * Complete Game State for interactive manual play.
+ * Complete Game State Machine for interactive manual play.
  */
 typedef struct {
     char start_word[MAX_WORD_LEN];
@@ -39,19 +39,31 @@ typedef struct {
     int word_len;
     int moves_count;
     int optimal_moves;      /* Shortest solution steps computed via BFS */
-    Stack *history_stack;   /* Move history for undo (LIFO) */
+    
+    /* Dual-Stack Architecture for Undo & Redo (Member 3) */
+    Stack *undo_stack;      /* Primary LIFO stack tracking forward moves */
+    Stack *redo_stack;      /* Secondary LIFO stack tracking undone moves */
+    Stack *history_stack;   /* Pointer alias to undo_stack */
+    
+    /* Telemetry & State Metrics */
+    int total_pushes;       /* Total moves pushed to stack */
+    int total_undos;        /* Total undos executed */
+    int total_redos;        /* Total redos executed */
+    
     Dictionary *dict;       /* Active dictionary reference */
 } GameState;
 
-/* Stack Operations */
+/* Stack Operations (Implemented from scratch) */
 Stack* stack_create(void);
 bool stack_push(Stack *s, const char *word);
 char* stack_pop(Stack *s);
 const char* stack_peek(const Stack *s);
 bool stack_is_empty(const Stack *s);
+void stack_clear(Stack *s);
+bool stack_contains(const Stack *s, const char *word);
 void stack_free(Stack *s);
 
-/* Game Logic Operations */
+/* Game Engine & State Machine Operations */
 GameState* game_create(Dictionary *dict, const char *start, const char *target);
 void game_free(GameState *game);
 
@@ -59,18 +71,36 @@ void game_free(GameState *game);
  * Processes a player's proposed word move.
  * Performs rigorous checks:
  *   1. Length matching
- *   2. Single letter difference check (Hamming distance == 1)
+ *   2. Hamming distance metric check (d_H(current, new) == 1)
  *   3. Dictionary existence validation via Binary Search
+ *   4. Cycle detection in active move history
  * Returns true if the move was accepted, false otherwise (with error message).
  */
-bool game_make_move(GameState *game, const char *new_word, char *err_msg, size_t err_size);
+bool game_make_move(GameState *game, const char *new_word, char *err_msg, size_t err_size, bool *out_cycle_warning);
 
 /**
- * Reverts the most recent move using the LIFO Stack.
- * Copies the undone word into reverted_word (if not NULL).
+ * Reverts the most recent move using the LIFO undo_stack.
+ * Pushes the undone word onto redo_stack in O(1).
  * Returns true if undo was successful, false if already at the start word.
  */
 bool game_undo_move(GameState *game, char *reverted_word);
+
+/**
+ * Restores the most recently undone move from the redo_stack.
+ * Pushes the restored word back onto undo_stack in O(1).
+ * Returns true if redo was successful, false if redo_stack is empty.
+ */
+bool game_redo_move(GameState *game, char *restored_word);
+
+/**
+ * Computes the player's real-time efficiency ratio relative to the BFS optimal path.
+ */
+double game_get_efficiency(const GameState *game);
+
+/**
+ * Computes the player's performance tier badge (Grandmaster, Expert, Explorer).
+ */
+const char* game_get_rank(const GameState *game);
 
 /**
  * Checks if the player has successfully transformed the start word into target word.

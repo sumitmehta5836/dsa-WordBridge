@@ -167,6 +167,9 @@ void ui_render_game_board(const GameState *game, const char *status_msg, int sta
     if (game->optimal_moves > 0) {
         printf("  |  " COLOR_BOLD "Optimal BFS Moves:" COLOR_RESET " %d", game->optimal_moves);
     }
+    if (game->redo_stack && game->redo_stack->count > 0) {
+        printf("  |  " COLOR_BYELLOW COLOR_BOLD "Redo Ready:" COLOR_RESET " %d", game->redo_stack->count);
+    }
     printf("\n");
     ui_print_divider();
 
@@ -218,7 +221,8 @@ void ui_render_game_board(const GameState *game, const char *status_msg, int sta
 
     /* Command Bar */
     printf(COLOR_BOLD "  COMMANDS: " COLOR_RESET);
-    printf("[Type Next Word]  |  " COLOR_BYELLOW "[U]" COLOR_RESET "ndo  |  " 
+    printf("[Type Word]  |  " COLOR_BYELLOW "[U]" COLOR_RESET "ndo  |  " 
+           COLOR_BYELLOW "[R]" COLOR_RESET "edo  |  " 
            COLOR_BCYAN "[H]" COLOR_RESET "int  |  " 
            COLOR_BMAGENTA "[S]" COLOR_RESET "olve  |  " 
            COLOR_BRED "[Q]" COLOR_RESET "uit\n");
@@ -436,19 +440,19 @@ void ui_print_viva_defense(void) {
     ui_print_divider();
     printf("\n");
     printf(COLOR_BGREEN "  1. MODULE MAPPING TO CORE DATA STRUCTURES:\n" COLOR_RESET);
-    printf("     • " COLOR_BOLD "Dictionary Storage" COLOR_RESET "  : Dynamic Array of strings (char**)\n");
-    printf("     • " COLOR_BOLD "Word Validation" COLOR_RESET "     : Binary Search (O(log N) lookup time)\n");
-    printf("     • " COLOR_BOLD "Auto-Solver" COLOR_RESET "         : Breadth-First Search (BFS) using a Queue (FIFO)\n");
-    printf("     • " COLOR_BOLD "Implicit Graph" COLOR_RESET "      : Neighbors generated on-the-fly (26 * L candidates)\n");
-    printf("     • " COLOR_BOLD "Move History & Undo" COLOR_RESET " : Custom Stack (LIFO, push/pop in O(1))\n");
-    printf("     • " COLOR_BOLD "Path Replay" COLOR_RESET "         : Doubly Linked List (Bidirectional O(1) next/prev)\n");
+    printf("     • " COLOR_BOLD "Dictionary Storage" COLOR_RESET "      : Dynamic Array of strings (char**)\n");
+    printf("     • " COLOR_BOLD "Word Validation" COLOR_RESET "         : Binary Search (O(log N) lookup time)\n");
+    printf("     • " COLOR_BOLD "Auto-Solver" COLOR_RESET "             : Breadth-First Search (BFS) using a Queue (FIFO)\n");
+    printf("     • " COLOR_BOLD "Implicit Graph" COLOR_RESET "          : Neighbors generated on-the-fly (26 * L candidates)\n");
+    printf("     • " COLOR_BOLD "Move Engine & Dual-Stack" COLOR_RESET " : Dual-Stack (Undo & Redo in O(1)) + Cycle Check\n");
+    printf("     • " COLOR_BOLD "Path Replay" COLOR_RESET "             : Doubly Linked List (Bidirectional O(1) next/prev)\n");
     printf("\n");
     printf(COLOR_BGREEN "  2. ASYMPTOTIC COMPLEXITY ANALYSIS:\n" COLOR_RESET);
     printf("     ┌──────────────────────┬──────────────────────┬──────────────────────┐\n");
     printf("     │ Operation            │ Time Complexity      │ Space Complexity     │\n");
     printf("     ├──────────────────────┼──────────────────────┼──────────────────────┤\n");
     printf("     │ Dictionary Lookup    │ O(log N)             │ O(N) storage         │\n");
-    printf("     │ Undo Move            │ O(1)                 │ O(M) moves in stack  │\n");
+    printf("     │ Undo / Redo Move     │ O(1)                 │ O(M) moves in stacks │\n");
     printf("     │ BFS Shortest Path    │ O(V + 26*L*log N)    │ O(V) visited + queue │\n");
     printf("     │ Linked List Step     │ O(1)                 │ O(P) path nodes      │\n");
     printf("     └──────────────────────┴──────────────────────┴──────────────────────┘\n");
@@ -461,10 +465,10 @@ void ui_print_viva_defense(void) {
     printf("       reducing memory footprint to near zero!\n");
     printf("\n");
     printf(COLOR_BGREEN "  4. TEAM MEMBER RESPONSIBILITIES:\n" COLOR_RESET);
-    printf("     • " COLOR_BOLD "Member 1:" COLOR_RESET " Dictionary loading, QuickSort, and iterative Binary Search.\n");
-    printf("     • " COLOR_BOLD "Member 2:" COLOR_RESET " BFS queue, implicit graph exploration, and shortest path.\n");
-    printf("     • " COLOR_BOLD "Member 3:" COLOR_RESET " Game state machine, move validator, and Stack-based undo.\n");
-    printf("     • " COLOR_BOLD "Member 4:" COLOR_RESET " Doubly Linked List replay engine, telemetry, and terminal TUI.\n");
+    printf("     • " COLOR_BOLD "Member 1 (Prachi Tiwari):" COLOR_RESET "      Dictionary loading, QuickSort, and iterative Binary Search.\n");
+    printf("     • " COLOR_BOLD "Member 2 (Priyanshu Bisht):" COLOR_RESET "    BFS queue, implicit graph exploration, and shortest path.\n");
+    printf("     • " COLOR_BOLD "Member 3 (Sumit Mehta):" COLOR_RESET "        Dual-Stack (Undo/Redo), Hamming metric & state engine.\n");
+    printf("     • " COLOR_BOLD "Member 4 (Suraj Singh Bisht):" COLOR_RESET "  Doubly Linked List replay engine, telemetry, and terminal TUI.\n");
     printf("\n");
     ui_print_divider();
     printf("  Press [ENTER] to return to Main Menu... ");

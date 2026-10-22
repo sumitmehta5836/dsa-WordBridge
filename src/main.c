@@ -32,15 +32,17 @@ static const PuzzlePreset PRESETS[] = {
 static const int PRESET_COUNT = sizeof(PRESETS) / sizeof(PRESETS[0]);
 
 /* Helper to safely read a line from stdin */
-static void get_user_input(char *buffer, size_t size, const char *prompt) {
+static bool get_user_input(char *buffer, size_t size, const char *prompt) {
     if (prompt) {
         printf("%s", prompt);
         fflush(stdout);
     }
     if (fgets(buffer, (int)size, stdin)) {
         str_trim(buffer);
+        return true;
     } else {
         buffer[0] = '\0';
+        return false;
     }
 }
 
@@ -129,7 +131,7 @@ static void handle_play_mode(Dictionary *dict) {
         ui_render_game_board(game, status_msg, status_type);
         status_msg[0] = '\0'; /* Clear message for next turn */
 
-        get_user_input(input_buf, sizeof(input_buf), NULL);
+        if (!get_user_input(input_buf, sizeof(input_buf), NULL)) break;
         if (strlen(input_buf) == 0) continue;
 
         /* Check for commands */
@@ -143,10 +145,22 @@ static void handle_play_mode(Dictionary *dict) {
                 if (game_undo_move(game, reverted)) {
                     char rev_u[MAX_WORD_LEN];
                     str_to_upper(rev_u, reverted);
-                    snprintf(status_msg, sizeof(status_msg), "Undid move: '%s' reverted.", rev_u);
+                    snprintf(status_msg, sizeof(status_msg), "Undid move: '%s' reverted. (Press 'R' to Redo)", rev_u);
                     status_type = 1;
                 } else {
                     snprintf(status_msg, sizeof(status_msg), "Already at the starting word! Cannot undo further.");
+                    status_type = 3;
+                }
+                continue;
+            } else if (cmd == 'R') {
+                char restored[MAX_WORD_LEN] = "";
+                if (game_redo_move(game, restored)) {
+                    char res_u[MAX_WORD_LEN];
+                    str_to_upper(res_u, restored);
+                    snprintf(status_msg, sizeof(status_msg), "Redid move: '%s' restored from redo_stack.", res_u);
+                    status_type = 1;
+                } else {
+                    snprintf(status_msg, sizeof(status_msg), "No moves available in redo_stack to restore!");
                     status_type = 3;
                 }
                 continue;
@@ -182,9 +196,17 @@ static void handle_play_mode(Dictionary *dict) {
 
         /* Player entered a word guess */
         char err[128];
-        if (game_make_move(game, input_buf, err, sizeof(err))) {
-            snprintf(status_msg, sizeof(status_msg), "Good move!");
-            status_type = 1;
+        bool cycle_warning = false;
+        if (game_make_move(game, input_buf, err, sizeof(err), &cycle_warning)) {
+            if (cycle_warning) {
+                char clean_u[MAX_WORD_LEN];
+                str_to_upper(clean_u, input_buf);
+                snprintf(status_msg, sizeof(status_msg), "Valid move, BUT cycle detected: '%s' was already in ladder!", clean_u);
+                status_type = 2; /* Warning */
+            } else {
+                snprintf(status_msg, sizeof(status_msg), "Valid move! (d_H = 1)");
+                status_type = 1;
+            }
 
             if (game_is_won(game)) {
                 ui_clear_screen();
@@ -193,13 +215,17 @@ static void handle_play_mode(Dictionary *dict) {
                 printf(COLOR_BGREEN COLOR_BOLD "  🎉 CONGRATULATIONS! YOU SOLVED THE PUZZLE! 🎉\n" COLOR_RESET);
                 printf("  You reached " COLOR_BYELLOW "[%s]" COLOR_RESET " in " COLOR_BOLD "%d moves!\n" COLOR_RESET, 
                        game->target_word, game->moves_count);
-                if (game->optimal_moves > 0) {
-                    if (game->moves_count == game->optimal_moves) {
-                        printf(COLOR_BGREEN "  ★ PERFECT SCORE: You matched the optimal BFS shortest path!\n" COLOR_RESET);
-                    } else {
-                        printf(COLOR_DIM "  (Optimal shortest path was %d moves)\n" COLOR_RESET, game->optimal_moves);
-                    }
-                }
+
+                double eff = game_get_efficiency(game);
+                const char *rank = game_get_rank(game);
+                printf("\n  " COLOR_BOLD "PLAYER PERFORMANCE & EFFICIENCY (STATE MACHINE METRICS):\n" COLOR_RESET);
+                printf("  • Optimal BFS Path : " COLOR_BOLD "%d moves\n" COLOR_RESET, game->optimal_moves);
+                printf("  • Actual Moves     : " COLOR_BOLD "%d moves\n" COLOR_RESET, game->moves_count);
+                printf("  • Path Efficiency  : " COLOR_BGREEN "%.1f%%\n" COLOR_RESET, eff);
+                printf("  • Player Tier Rank : " COLOR_BYELLOW "%s\n" COLOR_RESET, rank);
+                printf("  • Dual-Stack Stats : %d pushes | %d undos | %d redos executed\n", 
+                       game->total_pushes, game->total_undos, game->total_redos);
+
                 printf("\n");
                 ui_print_divider();
                 printf("  Press [ENTER] to return to Main Menu... ");
@@ -362,7 +388,7 @@ int main(void) {
 
     while (running) {
         ui_print_menu();
-        get_user_input(choice_buf, sizeof(choice_buf), NULL);
+        if (!get_user_input(choice_buf, sizeof(choice_buf), NULL)) break;
 
         if (strlen(choice_buf) == 0) continue;
 

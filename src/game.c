@@ -3,7 +3,7 @@
  * WORDBRIDGE: A Word Ladder Puzzle Game with Auto-Solver
  * Subject: Data Structures and Algorithms (DSA)
  * File: src/game.c
- * Module 3 - Member 3: Manual Play & Undo (Stack)
+ * Module 3 - Member 3: Manual Play, Dual-Stack (Undo/Redo) & State Engine
  * ============================================================================
  */
 
@@ -64,7 +64,7 @@ bool stack_is_empty(const Stack *s) {
     return (s == NULL || s->top == NULL);
 }
 
-void stack_free(Stack *s) {
+void stack_clear(Stack *s) {
     if (!s) return;
     StackNode *curr = s->top;
     while (curr != NULL) {
@@ -72,10 +72,35 @@ void stack_free(Stack *s) {
         free(curr);
         curr = next;
     }
+    s->top = NULL;
+    s->count = 0;
+}
+
+bool stack_contains(const Stack *s, const char *word) {
+    if (!s || !word) return false;
+
+    char target[MAX_WORD_LEN];
+    str_to_lower(target, word);
+
+    StackNode *curr = s->top;
+    while (curr != NULL) {
+        char curr_low[MAX_WORD_LEN];
+        str_to_lower(curr_low, curr->word);
+        if (strcmp(curr_low, target) == 0) {
+            return true;
+        }
+        curr = curr->next;
+    }
+    return false;
+}
+
+void stack_free(Stack *s) {
+    if (!s) return;
+    stack_clear(s);
     free(s);
 }
 
-/* Game Engine Implementation */
+/* Game Engine & State Machine Implementation */
 
 GameState* game_create(Dictionary *dict, const char *start, const char *target) {
     if (!dict || !start || !target) return NULL;
@@ -92,15 +117,25 @@ GameState* game_create(Dictionary *dict, const char *start, const char *target) 
 
     game->word_len = (int)strlen(game->start_word);
     game->moves_count = 0;
+    game->total_pushes = 0;
+    game->total_undos = 0;
+    game->total_redos = 0;
     game->dict = dict;
 
-    /* Initialize LIFO undo stack and push starting word */
-    game->history_stack = stack_create();
-    if (!game->history_stack) {
+    /* Initialize Dual-Stack History Architecture (Undo Stack + Redo Stack) */
+    game->undo_stack = stack_create();
+    game->redo_stack = stack_create();
+    if (!game->undo_stack || !game->redo_stack) {
+        if (game->undo_stack) stack_free(game->undo_stack);
+        if (game->redo_stack) stack_free(game->redo_stack);
         free(game);
         return NULL;
     }
-    stack_push(game->history_stack, game->start_word);
+    game->history_stack = game->undo_stack; /* Pointer alias */
+
+    /* Push start word to primary undo stack */
+    stack_push(game->undo_stack, game->start_word);
+    game->total_pushes = 1;
 
     /* Compute optimal shortest path length in advance via BFS */
     SolverMetrics metrics;
@@ -117,14 +152,21 @@ GameState* game_create(Dictionary *dict, const char *start, const char *target) 
 
 void game_free(GameState *game) {
     if (!game) return;
-    if (game->history_stack) {
-        stack_free(game->history_stack);
+    if (game->undo_stack) {
+        stack_free(game->undo_stack);
+    }
+    if (game->redo_stack) {
+        stack_free(game->redo_stack);
     }
     free(game);
 }
 
-bool game_make_move(GameState *game, const char *new_word, char *err_msg, size_t err_size) {
+bool game_make_move(GameState *game, const char *new_word, char *err_msg, size_t err_size, bool *out_cycle_warning) {
     if (!game || !new_word) return false;
+
+    if (out_cycle_warning) {
+        *out_cycle_warning = false;
+    }
 
     char clean_word[MAX_WORD_LEN + 1];
     str_to_lower(clean_word, new_word);
@@ -132,7 +174,8 @@ bool game_make_move(GameState *game, const char *new_word, char *err_msg, size_t
     /* Check 1: Length matching */
     if ((int)strlen(clean_word) != game->word_len) {
         if (err_msg) {
-            snprintf(err_msg, err_size, "Word must be exactly %d letters long!", game->word_len);
+            snprintf(err_msg, err_size, "Word length mismatch: expected %d letters, got %lu.", 
+                     game->word_len, strlen(clean_word));
         }
         return false;
     }
@@ -140,21 +183,22 @@ bool game_make_move(GameState *game, const char *new_word, char *err_msg, size_t
     /* Check 2: Same word repeated */
     if (strcmp(clean_word, game->current_word) == 0) {
         if (err_msg) {
-            snprintf(err_msg, err_size, "Word is already '%s'!", clean_word);
+            snprintf(err_msg, err_size, "Repeated move: current word is already '%s'.", clean_word);
         }
         return false;
     }
 
-    /* Check 3: Must change exactly one letter */
-    int diff = word_difference_count(game->current_word, clean_word);
-    if (diff != 1) {
+    /* Check 3: Hamming Distance Metric (d_H == 1) */
+    int h_dist = word_difference_count(game->current_word, clean_word);
+    if (h_dist != 1) {
         if (err_msg) {
-            snprintf(err_msg, err_size, "You changed %d letters! You must change EXACTLY 1 letter.", diff);
+            snprintf(err_msg, err_size, "Hamming distance error: d_H(%s, %s) = %d. Distance must be exactly 1.", 
+                     game->current_word, clean_word, h_dist);
         }
         return false;
     }
 
-    /* Check 4: Must exist in dictionary (Binary Search) */
+    /* Check 4: Dictionary validation via Binary Search */
     if (!dict_contains(game->dict, clean_word)) {
         if (err_msg) {
             snprintf(err_msg, err_size, "'%s' is not in the dictionary!", clean_word);
@@ -162,10 +206,24 @@ bool game_make_move(GameState *game, const char *new_word, char *err_msg, size_t
         return false;
     }
 
-    /* Valid move: Push to history stack and advance game state */
-    stack_push(game->history_stack, clean_word);
+    /* Check 5: Cycle / Loop Detection in active history stack */
+    if (stack_contains(game->undo_stack, clean_word)) {
+        if (out_cycle_warning) {
+            *out_cycle_warning = true;
+        }
+    }
+
+    /* Valid move:
+     * 1. Push to primary undo stack
+     * 2. Clear secondary redo stack (standard text-editor/browser history semantics)
+     * 3. Update current game state
+     */
+    stack_push(game->undo_stack, clean_word);
+    stack_clear(game->redo_stack);
+
     strcpy(game->current_word, clean_word);
     game->moves_count++;
+    game->total_pushes++;
 
     if (err_msg) {
         err_msg[0] = '\0';
@@ -174,28 +232,83 @@ bool game_make_move(GameState *game, const char *new_word, char *err_msg, size_t
 }
 
 bool game_undo_move(GameState *game, char *reverted_word) {
-    if (!game || !game->history_stack) return false;
+    if (!game || !game->undo_stack) return false;
 
     /* Stack must contain at least 2 items to undo (start word + at least 1 move) */
-    if (game->history_stack->count <= 1) {
+    if (game->undo_stack->count <= 1) {
         return false;
     }
 
-    /* Pop the current word */
-    char *popped = stack_pop(game->history_stack);
-    if (reverted_word && popped) {
+    /* Pop current word from undo stack */
+    char *popped = stack_pop(game->undo_stack);
+    if (!popped) return false;
+
+    /* Push popped word onto redo stack for O(1) restoration */
+    stack_push(game->redo_stack, popped);
+
+    if (reverted_word) {
         strcpy(reverted_word, popped);
     }
-    if (popped) free(popped);
+    free(popped);
 
-    /* Restore current word to the new top of stack */
-    const char *previous = stack_peek(game->history_stack);
+    /* Restore current word to the new top of undo stack */
+    const char *previous = stack_peek(game->undo_stack);
     if (previous) {
         strcpy(game->current_word, previous);
     }
     game->moves_count--;
+    game->total_undos++;
 
     return true;
+}
+
+bool game_redo_move(GameState *game, char *restored_word) {
+    if (!game || !game->redo_stack || stack_is_empty(game->redo_stack)) {
+        return false;
+    }
+
+    /* Pop from redo stack */
+    char *popped = stack_pop(game->redo_stack);
+    if (!popped) return false;
+
+    /* Push back onto undo stack */
+    stack_push(game->undo_stack, popped);
+
+    if (restored_word) {
+        strcpy(restored_word, popped);
+    }
+    strcpy(game->current_word, popped);
+    free(popped);
+
+    game->moves_count++;
+    game->total_redos++;
+
+    return true;
+}
+
+double game_get_efficiency(const GameState *game) {
+    if (!game || game->optimal_moves <= 0 || game->moves_count <= 0) return 100.0;
+
+    double eff = ((double)game->optimal_moves / (double)game->moves_count) * 100.0;
+    if (eff > 100.0) eff = 100.0;
+    return eff;
+}
+
+const char* game_get_rank(const GameState *game) {
+    if (!game) return "Unknown";
+
+    if (game->moves_count <= game->optimal_moves) {
+        return "Grandmaster (Optimal Solution)";
+    }
+
+    double eff = game_get_efficiency(game);
+    if (eff >= 80.0) {
+        return "Expert Ladder Climber";
+    } else if (eff >= 60.0) {
+        return "Skilled Word-Weaver";
+    } else {
+        return "Explorer (Scenic Route)";
+    }
 }
 
 bool game_is_won(const GameState *game) {
