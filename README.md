@@ -1,7 +1,6 @@
 # WordBridge — Word Ladder Puzzle Game with Auto-Solver
 **Subject:** Data Structures & Algorithms (DSA) — Project-Based Learning (PBL)  
 **Language:** Pure C (C99 standard, zero external libraries)  
-**Academic Level:** 2nd Year B.Tech  
 
 ---
 
