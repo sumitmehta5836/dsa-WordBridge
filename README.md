@@ -103,19 +103,3 @@ make run
    - Uses the Doubly Linked List to navigate forward `[N]`, backward `[P]`, jump to start `[B]`, jump to end `[E]`, or watch animated `[A]`uto-play.
 6. **DSA Architecture Screen**:
    - Menu Option `[4]` displays the full academic DSA mapping and Big-O tables directly in the terminal for reference.
-
----
-
-## 🎓 Viva Questions & Winning Answers
-
-1. **Q: Why use an Implicit Graph instead of an Adjacency Matrix or Adjacency List?**
-   * **Answer:** With 33,000+ words in English, an Adjacency Matrix would require $33000^2 \approx 1.08 \text{ billion}$ entries ($> 1\text{ GB}$ of memory). An Adjacency List would take hundreds of megabytes. By using an **implicit graph**, we generate neighbors on-the-fly ($26 \times L$ candidates) and check validity via $O(\log N)$ Binary Search, keeping the memory footprint minimal.
-
-2. **Q: Why is BFS used instead of DFS or Dijkstra's Algorithm?**
-   * **Answer:** Each single-letter transformation represents an edge of **unit weight (weight = 1)**. In an unweighted graph, **BFS guarantees the shortest path** in $O(V + E)$ time. Dijkstra would add unnecessary priority queue overhead ($O(E \log V)$), while DFS could get trapped in infinite cycles or deep non-optimal paths.
-
-3. **Q: How does the Undo feature work under the hood?**
-   * **Answer:** It uses a **LIFO Stack**. When the player enters a valid word, it is pushed onto the stack. When undo is triggered, we pop the current word; the previous game state is immediately available at the new top of the stack in $O(1)$ time.
-
-4. **Q: Why is a Doubly Linked List used for path replay instead of a Singly Linked List?**
-   * **Answer:** A Singly Linked List only supports $O(1)$ forward traversal (`next`). Stepping backwards (`prev`) would require an $O(P)$ search from the head each time. A **Doubly Linked List** has both `prev` and `next` pointers, enabling instantaneous $O(1)$ bidirectional stepping for user playback.
