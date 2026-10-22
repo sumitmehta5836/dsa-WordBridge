@@ -1,0 +1,12 @@
+# Binaries and object files
+wordbridge
+obj/
+*.o
+*.exe
+*.out
+
+# OS / Editor specific
+.DS_Store
+.vscode/
+.idea/
+.env*
