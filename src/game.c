@@ -5,7 +5,7 @@
  * Role: Manual Play Engine, Dual-Stack (Undo/Redo), State Machine & Hamming Metric
  * ============================================================================
  *
- * QUICK DSA SUMMARY (FOR VIVA):
+ * DSA CONCEPTS USED:
  * 1. DUAL-STACK (LIFO): undo_stack + redo_stack handle reversible moves in O(1).
  *    - New Move : push(undo_stack), clear(redo_stack) in O(1).
  *    - Undo     : pop(undo_stack) -> push(redo_stack) in O(1).
