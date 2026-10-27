@@ -5,7 +5,7 @@
  * Role: Dictionary Storage, QuickSort & Binary Search Engine
  * ============================================================================
  *
- * QUICK DSA SUMMARY (FOR VIVA):
+ * DSA CONCEPT USED:
  * 1. DYNAMIC ARRAY: Stores 33,000+ words; realloc() doubles capacity in amortized O(1).
  * 2. MEDIAN-OF-3 QUICKSORT: Prevents worst-case O(N^2) (2.2s -> 5.7ms). Tail-call
  *    looping caps call-stack depth to <= 15 frames (eliminates stack overflow).
