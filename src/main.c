@@ -1,9 +1,15 @@
 /**
  * ============================================================================
  * WORDBRIDGE: A Word Ladder Puzzle Game with Auto-Solver
- * Subject: Data Structures and Algorithms (DSA)
- * File: src/main.c
- * Description: Program entry point, menu coordinator, and module integration.
+ * File: src/main.c | Module Integration & Main Controller
+ * Team Lead: Suraj Singh Bisht / All Members
+ * ============================================================================
+ *
+ * QUICK PIPELINE SUMMARY (FOR VIVA):
+ * 1. M1 (Prachi): Loads dictionary into dynamic array; sorts in O(N log N).
+ * 2. M2 (Priyanshu): Solves shortest path via BFS & Implicit Graph in O(V + E).
+ * 3. M3 (Sumit): Drives manual play with dual-stack undo/redo & Hamming checks.
+ * 4. M4 (Suraj): Replays path via Doubly Linked List & renders terminal UI.
  * ============================================================================
  */
 

@@ -64,10 +64,11 @@
 #define BG_MAGENTA    "\033[45m"
 #define BG_DARKGRAY   "\033[100m"
 
-/* Helper Functions */
+/* Helper Functions with Strict Bounds Protection */
 static inline void str_to_lower(char *dest, const char *src) {
+    if (!dest || !src) return;
     size_t i = 0;
-    while (src[i] != '\0') {
+    while (src[i] != '\0' && i < MAX_WORD_LEN) {
         dest[i] = (char)tolower((unsigned char)src[i]);
         i++;
     }
@@ -75,8 +76,9 @@ static inline void str_to_lower(char *dest, const char *src) {
 }
 
 static inline void str_to_upper(char *dest, const char *src) {
+    if (!dest || !src) return;
     size_t i = 0;
-    while (src[i] != '\0') {
+    while (src[i] != '\0' && i < MAX_WORD_LEN) {
         dest[i] = (char)toupper((unsigned char)src[i]);
         i++;
     }
