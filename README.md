@@ -13,6 +13,7 @@
 ---
 
 ## 📌 Project Overview
+
 WordBridge transforms the classic shortest-path word ladder problem into an interactive, visual console game and algorithmic engine. Players transform a start word into a target word one letter at a time through valid dictionary words, backed by an auto-solver that computes and replays the optimal shortest path.
 
 Everything is implemented **from scratch** using core data structures—no C++ STL, no third-party game frameworks, and zero external dependencies.
