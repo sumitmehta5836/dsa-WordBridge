@@ -5,7 +5,6 @@
  * Team Lead: Suraj Singh Bisht / All Members
  * ============================================================================
  *
- * QUICK PIPELINE SUMMARY (FOR VIVA):
  * 1. M1 (Prachi): Loads dictionary into dynamic array; sorts in O(N log N).
  * 2. M2 (Priyanshu): Solves shortest path via BFS & Implicit Graph in O(V + E).
  * 3. M3 (Sumit): Drives manual play with dual-stack undo/redo & Hamming checks.
