@@ -5,7 +5,7 @@
  * Role: Doubly Linked List Replay Engine, Telemetry Analytics & Terminal TUI
  * ============================================================================
  *
- * QUICK DSA SUMMARY (FOR VIVA):
+ * DSA CONCEPTS USED:
  * 1. DOUBLY LINKED LIST: Enables O(1) two-way traversal (curr->next & curr->prev).
  * 2. WORDLE-STYLE BOX: Highlights the single modified character in green.
  * 3. STEP COLLAPSER: Dynamically summarizes games >6 moves to avoid terminal jitter.
