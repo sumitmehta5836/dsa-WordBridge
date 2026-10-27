@@ -5,11 +5,11 @@
 ---
 
 ### 👥 Team Members
-* **Prachi Tiwari** (Member 1) — Dictionary Storage, QuickSort & Binary Search
+* **Prachi Tiwari** (Member 1) — Dictionary Storage, QuickSort & Binary Search    
 * **Priyanshu Bisht** (Member 2) — BFS Auto-Solver, Queue & Implicit Graph
 * **Sumit Mehta** (Member 3) — Dual-Stack (Undo/Redo), Hamming Metric & State Engine
 * **Suraj Singh Bisht** (Member 4) — Doubly Linked List Replay Engine & Terminal TUI
-
+      
 ---
 
 ## 📌 Project Overview
