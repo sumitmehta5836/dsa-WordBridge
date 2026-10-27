@@ -5,7 +5,7 @@
  * Role: BFS Auto-Solver, Queue (FIFO) & Implicit Word Graph Engine
  * ============================================================================
  *
- * QUICK DSA SUMMARY (FOR VIVA):
+ * DSA CONCEPTS USED: 
  * 1. QUEUE (FIFO): Linked list with front/rear pointers; strictly O(1) push and pop.
  * 2. IMPLICIT GRAPH: Generates 26 * L neighbors on-the-fly; avoids 1.14 GB matrix.
  *    Validates candidates via Member 1's Binary Search in O(log N).
