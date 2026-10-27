@@ -4,7 +4,7 @@
  * File: src/dictionary.c | Module 1 - Member 1: Prachi Tiwari
  * Role: Dictionary Storage, QuickSort & Binary Search Engine
  * ============================================================================
- *
+ 
  * DSA CONCEPT USED:
  * 1. DYNAMIC ARRAY: Stores 33,000+ words; realloc() doubles capacity in amortized O(1).
  * 2. MEDIAN-OF-3 QUICKSORT: Prevents worst-case O(N^2) (2.2s -> 5.7ms). Tail-call
@@ -49,6 +49,7 @@ static FILE* open_dictionary_file(const char *filename) {
             if (file) return file;
         }
     }
+    
 #elif defined(_WIN32)
     char exe_path[MAX_PATH];
     if (GetModuleFileNameA(NULL, exe_path, MAX_PATH) > 0) {
