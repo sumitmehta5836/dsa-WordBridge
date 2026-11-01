@@ -1,28 +1,17 @@
 /**
  * ============================================================================
  * WORDBRIDGE: A Word Ladder Puzzle Game with Auto-Solver
- * File: src/display.c | Module 4 - Member 4: Suraj Singh Bisht
- * Role: Doubly Linked List Replay Engine, Telemetry Analytics & Terminal TUI
- * ============================================================================
- *
- * DSA CONCEPTS USED:
- * 1. DOUBLY LINKED LIST: Enables O(1) two-way traversal (curr->next & curr->prev).
- * 2. WORDLE-STYLE BOX: Highlights the single modified character in green.
- * 3. STEP COLLAPSER: Dynamically summarizes games >6 moves to avoid terminal jitter.
- * 4. TELEMETRY CARD: Displays search time (ms/us), nodes expanded, and Big-O bounds.
+ * Subject: Data Structures and Algorithms (DSA)
+ * File: src/display.c
+ * Module 4 - Member 4: Path Storage, Replay & Console UI
  * ============================================================================
  */
 
 #include "display.h"
 
-/* ============================================================================
- * 1. DOUBLY LINKED LIST IMPLEMENTATION FROM SCRATCH
- * ============================================================================ */
+/* Doubly linked list path storage: head/tail keep append O(1), and prev/next
+ * links let the replay cursor move in either direction in O(1). */
 
-/**
- * Allocates and initializes an empty Doubly Linked List container on the heap.
- * Complexity: O(1) time | O(1) space
- */
 PathList* path_list_create(void) {
     PathList *list = (PathList *)malloc(sizeof(PathList));
     if (!list) {
@@ -36,11 +25,6 @@ PathList* path_list_create(void) {
     return list;
 }
 
-/**
- * Appends a new step node to the end (tail) of the Doubly Linked List.
- * Links `node->prev = list->tail` and `list->tail->next = node`.
- * Complexity: O(1) time | O(1) space per node
- */
 void path_list_append(PathList *list, const char *word) {
     if (!list || !word) return;
 
@@ -54,6 +38,7 @@ void path_list_append(PathList *list, const char *word) {
     node->word[MAX_WORD_LEN - 1] = '\0';
     node->step_number = list->total_steps + 1;
     node->next = NULL;
+    /* Link both directions so replay can step forward and backward directly. */
     node->prev = list->tail;
 
     if (list->tail == NULL) {
@@ -67,11 +52,6 @@ void path_list_append(PathList *list, const char *word) {
     list->total_steps++;
 }
 
-/**
- * Constructs a Doubly Linked List from an array of word strings.
- * Sets `list->current = list->head` to prepare for sequential playback.
- * Complexity: O(P) where P is word count | O(P) space
- */
 PathList* path_list_from_array(char **path, int count) {
     if (!path || count <= 0) return NULL;
 
@@ -81,16 +61,19 @@ PathList* path_list_from_array(char **path, int count) {
     for (int i = 0; i < count; i++) {
         if (path[i]) {
             path_list_append(list, path[i]);
+            if (list->total_steps != i + 1) {
+                path_list_free(list);
+                return NULL;
+            }
+        } else {
+            path_list_free(list);
+            return NULL;
         }
     }
     list->current = list->head;
     return list;
 }
 
-/**
- * Deallocates all nodes in the Doubly Linked List and frees the list container.
- * Complexity: O(P) time | O(1) auxiliary space
- */
 void path_list_free(PathList *list) {
     if (!list) return;
     PathNode *curr = list->head;
@@ -102,9 +85,7 @@ void path_list_free(PathList *list) {
     free(list);
 }
 
-/* ============================================================================
- * 2. UI & TERMINAL RENDERING FUNCTIONS
- * ============================================================================ */
+/* UI & Terminal Rendering Functions */
 
 void ui_clear_screen(void) {
     printf("\033[H\033[2J");
@@ -206,41 +187,28 @@ void ui_render_game_board(const GameState *game, const char *status_msg, int sta
     if (game->history_stack && game->history_stack->count > 0) {
         /* Read history words from bottom to top for forward display */
         int count = game->history_stack->count;
-        char (*words_copy)[MAX_WORD_LEN] = (char (*)[MAX_WORD_LEN])malloc(sizeof(char[MAX_WORD_LEN]) * count);
-        if (words_copy) {
-            int idx = count - 1;
-            StackNode *curr = game->history_stack->top;
-            while (curr != NULL && idx >= 0) {
-                strncpy(words_copy[idx], curr->word, MAX_WORD_LEN - 1);
-                words_copy[idx][MAX_WORD_LEN - 1] = '\0';
-                curr = curr->next;
-                idx--;
-            }
+        char words_copy[64][MAX_WORD_LEN];
+        int idx = count - 1;
 
-            /* If ladder is long, compress earlier steps to prevent terminal scroll */
-            int start_show = 0;
-            if (count > 6) {
-                start_show = count - 5;
-                char first_upper[MAX_WORD_LEN];
-                str_to_upper(first_upper, words_copy[0]);
-                printf(COLOR_DIM "  Step 0: %s\n" COLOR_RESET, first_upper);
-                printf(COLOR_DIM "     ⋮ (%d intermediate moves collapsed)\n" COLOR_RESET, start_show - 1);
-            }
+        StackNode *curr = game->history_stack->top;
+        while (curr != NULL && idx >= 0 && idx < 64) {
+            strcpy(words_copy[idx], curr->word);
+            curr = curr->next;
+            idx--;
+        }
 
-            for (int i = start_show; i < count; i++) {
-                char upper[MAX_WORD_LEN];
-                str_to_upper(upper, words_copy[i]);
-                const char *prev = (i > 0) ? words_copy[i - 1] : NULL;
+        for (int i = 0; i < count; i++) {
+            char upper[MAX_WORD_LEN];
+            str_to_upper(upper, words_copy[i]);
+            const char *prev = (i > 0) ? words_copy[i - 1] : NULL;
 
-                if (i == count - 1) {
-                    printf(COLOR_BYELLOW "  Step %d (CURRENT):\n" COLOR_RESET, i);
-                    ui_render_word_box(upper, prev, true);
-                } else {
-                    printf(COLOR_DIM "  Step %d: %s\n" COLOR_RESET, i, upper);
-                    printf(COLOR_DIM "     ↓\n" COLOR_RESET);
-                }
+            if (i == count - 1) {
+                printf(COLOR_BYELLOW "  Step %d (CURRENT):\n" COLOR_RESET, i);
+                ui_render_word_box(upper, prev, true);
+            } else {
+                printf(COLOR_DIM "  Step %d: %s\n" COLOR_RESET, i, upper);
+                printf(COLOR_DIM "     ↓\n" COLOR_RESET);
             }
-            free(words_copy);
         }
     }
 
@@ -293,11 +261,6 @@ static void render_box_row(const char *label, const char *value, const char *val
     printf(COLOR_BCYAN " ║\n" COLOR_RESET);
 }
 
-/**
- * Renders the algorithm telemetry and benchmark analytics card.
- * Formats metrics into a neat terminal box detailing elapsed runtime,
- * queue expansion, visited node count, and Big-O computational bounds.
- */
 void ui_render_metrics(const SolverMetrics *metrics, const char *start, const char *target) {
     if (!metrics) return;
 
@@ -316,8 +279,12 @@ void ui_render_metrics(const SolverMetrics *metrics, const char *start, const ch
     render_box_row("Word Pair          : ", pair_str, COLOR_BYELLOW);
 
     /* Row 2: Solution Found */
-    const char *status_text = metrics->found ? "YES (Optimal Path)" : "NO (Disconnected Graph)";
-    const char *status_color = metrics->found ? COLOR_BGREEN : COLOR_BRED;
+    const char *status_text = metrics->allocation_failed
+        ? "ERROR (Insufficient Memory)"
+        : metrics->found ? "YES (Optimal Path)" : "NO (Disconnected Graph)";
+    const char *status_color = metrics->allocation_failed || !metrics->found
+        ? COLOR_BRED
+        : COLOR_BGREEN;
     render_box_row("Solution Found     : ", status_text, status_color);
 
     /* Row 3: Shortest Path */
@@ -356,16 +323,6 @@ void ui_render_metrics(const SolverMetrics *metrics, const char *start, const ch
     printf(COLOR_BCYAN "  ╚══════════════════════════════════════════════════════════════════╝\n" COLOR_RESET);
 }
 
-/**
- * Interactive step-by-step replay mode using the Doubly Linked List.
- * Commands:
- *   [N]ext     : Advance cursor to list->current->next in O(1)
- *   [P]revious : Rewind cursor to list->current->prev in O(1)
- *   [A]uto-Play: Sequentially animated playback from head to tail
- *   [B]eginning: Jump to head in O(1)
- *   [E]nd      : Jump to tail in O(1)
- *   [Q]uit     : Exit replay loop
- */
 void ui_interactive_replay(PathList *list, const char *start, const char *target) {
     if (!list || list->total_steps == 0) return;
 
@@ -448,11 +405,11 @@ void ui_interactive_replay(PathList *list, const char *start, const char *target
         if (strlen(cmd_buf) == 0) continue;
         char act = (char)toupper((unsigned char)cmd_buf[0]);
 
-        if (act == 'N' || act == '>') {
+        if (act == 'N') {
             if (list->current->next) {
                 list->current = list->current->next;
             }
-        } else if (act == 'P' || act == '<') {
+        } else if (act == 'P') {
             if (list->current->prev) {
                 list->current = list->current->prev;
             }
@@ -461,8 +418,7 @@ void ui_interactive_replay(PathList *list, const char *start, const char *target
         } else if (act == 'E') {
             list->current = list->tail;
         } else if (act == 'A') {
-            /* Animated Auto-play from beginning of ladder */
-            list->current = list->head;
+            /* Animated Auto-play */
             while (list->current != NULL) {
                 ui_clear_screen();
                 ui_print_banner();
@@ -490,11 +446,6 @@ void ui_interactive_replay(PathList *list, const char *start, const char *target
     }
 }
 
-/**
- * Academic DSA Viva Defense Screen:
- * Synthesizes data structure assignments, asymptotic complexities,
- * and project architectural rationale for examiners.
- */
 void ui_print_viva_defense(void) {
     ui_clear_screen();
     ui_print_banner();

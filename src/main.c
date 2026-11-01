@@ -1,14 +1,9 @@
 /**
  * ============================================================================
  * WORDBRIDGE: A Word Ladder Puzzle Game with Auto-Solver
- * File: src/main.c | Module Integration & Main Controller
- * Team Lead: Suraj Singh Bisht / All Members
- * ============================================================================
- *
- * 1. M1 (Prachi): Loads dictionary into dynamic array; sorts in O(N log N).
- * 2. M2 (Priyanshu): Solves shortest path via BFS & Implicit Graph in O(V + E).
- * 3. M3 (Sumit): Drives manual play with dual-stack undo/redo & Hamming checks.
- * 4. M4 (Suraj): Replays path via Doubly Linked List & renders terminal UI.
+ * Subject: Data Structures and Algorithms (DSA)
+ * File: src/main.c
+ * Description: Program entry point, menu coordinator, and module integration.
  * ============================================================================
  */
 
@@ -27,12 +22,20 @@ typedef struct {
 } PuzzlePreset;
 
 static const PuzzlePreset PRESETS[] = {
-    {"cat",   "dog",   3, "Easy   (3 Letters)"},
-    {"cold",  "warm",  4, "Medium (4 Letters)"},
-    {"lead",  "gold",  4, "Medium (4 Letters)"},
-    {"fool",  "sage",  4, "Medium (4 Letters)"},
-    {"head",  "tail",  4, "Medium (4 Letters)"},
-    {"stone", "money", 5, "Hard   (5 Letters)"}
+    {"cat",    "dog",    3, "Easy   (3 Letters)"},
+    {"hot",    "tea",    3, "Easy   (3 Letters)"},
+    {"sun",    "sky",    3, "Easy   (3 Letters)"},
+    {"cold",   "warm",   4, "Medium (4 Letters)"},
+    {"lead",   "gold",   4, "Medium (4 Letters)"},
+    {"head",   "tail",   4, "Medium (4 Letters)"},
+    {"love",   "hate",   4, "Medium (4 Letters)"},
+    {"fire",   "cold",   4, "Medium (4 Letters)"},
+    {"fool",   "sage",   4, "Medium (4 Letters)"},
+    {"wheat",  "bread",  5, "Hard   (5 Letters)"},
+    {"stone",  "money",  5, "Hard   (5 Letters)"},
+    {"black",  "white",  5, "Hard   (5 Letters)"},
+    {"river",  "ocean",  5, "Hard   (5 Letters)"},
+    {"winter", "summer", 6, "Expert (6 Letters)"}
 };
 static const int PRESET_COUNT = sizeof(PRESETS) / sizeof(PRESETS[0]);
 
@@ -178,7 +181,7 @@ static void handle_play_mode(Dictionary *dict) {
                     status_type = 2;
                     free(hint);
                 } else {
-                    snprintf(status_msg, sizeof(status_msg), "No valid transformation path to target word exists!");
+                    snprintf(status_msg, sizeof(status_msg), "Could not find an optimal next move (no path or insufficient memory).");
                     status_type = 3;
                 }
                 continue;
@@ -188,11 +191,19 @@ static void handle_play_mode(Dictionary *dict) {
                 char **path = solver_find_shortest_path(dict, game->current_word, game->target_word, &metrics);
                 if (path) {
                     PathList *list = path_list_from_array(path, metrics.path_length);
-                    ui_interactive_replay(list, game->current_word, game->target_word);
-                    path_list_free(list);
+                    if (list) {
+                        ui_interactive_replay(list, game->current_word, game->target_word);
+                        path_list_free(list);
+                    } else {
+                        snprintf(status_msg, sizeof(status_msg), "The path was found, but replay memory could not be allocated.");
+                        status_type = 3;
+                    }
                     solver_free_path(path, metrics.path_length);
                 } else {
-                    snprintf(status_msg, sizeof(status_msg), "No BFS solution exists between current word and target.");
+                    snprintf(status_msg, sizeof(status_msg),
+                             metrics.allocation_failed
+                                 ? "BFS could not finish because memory allocation failed."
+                                 : "No BFS solution exists between current word and target.");
                     status_type = 3;
                 }
                 continue;
@@ -291,8 +302,8 @@ static void handle_auto_solver(Dictionary *dict) {
     str_trim(target_word);
 
     if (strlen(start_word) != strlen(target_word)) {
-        printf(COLOR_BRED "  Error: Word lengths differ (%lu vs %lu letters).\n" COLOR_RESET, 
-               strlen(start_word), strlen(target_word));
+        printf(COLOR_BRED "  Error: Word lengths differ (%d vs %d letters).\n" COLOR_RESET,
+               (int)strlen(start_word), (int)strlen(target_word));
         SLEEP_MS(1500);
         return;
     }
@@ -322,18 +333,27 @@ static void handle_auto_solver(Dictionary *dict) {
         ui_print_divider();
         printf("  " COLOR_BOLD "Launch Interactive Step-by-Step Replayer? [Y/n]: " COLOR_RESET);
         fflush(stdout);
-
         get_user_input(input_buf, sizeof(input_buf), NULL);
         if (strlen(input_buf) == 0 || toupper((unsigned char)input_buf[0]) == 'Y') {
             PathList *list = path_list_from_array(path, metrics.path_length);
-            ui_interactive_replay(list, start_word, target_word);
-            path_list_free(list);
+            if (list) {
+                ui_interactive_replay(list, start_word, target_word);
+                path_list_free(list);
+            } else {
+                printf(COLOR_BRED "  The shortest path was found, but replay memory could not be allocated.\n" COLOR_RESET);
+                printf("\n  Press [ENTER] to return...");
+                fgets(input_buf, sizeof(input_buf), stdin);
+            }
         }
 
         solver_free_path(path, metrics.path_length);
     } else {
-        printf(COLOR_BRED "\n  No transformation path exists in the word graph between '%s' and '%s'.\n" COLOR_RESET,
-               start_word, target_word);
+        if (metrics.allocation_failed) {
+            printf(COLOR_BRED "\n  The solver ran out of memory while searching for a path.\n" COLOR_RESET);
+        } else {
+            printf(COLOR_BRED "\n  No transformation path exists in the word graph between '%s' and '%s'.\n" COLOR_RESET,
+                   start_word, target_word);
+        }
         printf("\n  Press [ENTER] to return...");
         fgets(input_buf, sizeof(input_buf), stdin);
     }

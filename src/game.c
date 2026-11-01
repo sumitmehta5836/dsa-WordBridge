@@ -1,32 +1,17 @@
 /**
  * ============================================================================
  * WORDBRIDGE: A Word Ladder Puzzle Game with Auto-Solver
- * File: src/game.c | Module 3 - Member 3: Sumit Mehta
- * Role: Manual Play Engine, Dual-Stack (Undo/Redo), State Machine & Hamming Metric
- * ============================================================================
- *
- * DSA CONCEPTS USED:
- * 1. DUAL-STACK (LIFO): undo_stack + redo_stack handle reversible moves in O(1).
- *    - New Move : push(undo_stack), clear(redo_stack) in O(1).
- *    - Undo     : pop(undo_stack) -> push(redo_stack) in O(1).
- *    - Redo     : pop(redo_stack) -> push(undo_stack) in O(1).
- * 2. HAMMING DISTANCE: Enforces d_H == 1; rejects d_H = 0 (same) and d_H > 1 (multi-jump).
- * 3. CYCLE CHECK: stack_contains() scans stack in O(K) to alert on loops.
- * 4. EFFICIENCY: Compares player moves against BFS optimal baseline.
+ * Subject: Data Structures and Algorithms (DSA)
+ * File: src/game.c
+ * Module 3 - Member 3: Manual Play, Dual-Stack (Undo/Redo) & State Engine
  * ============================================================================
  */
 
 #include "game.h"
 #include "solver.h"
 
-/* ============================================================================
- * 1. STACK IMPLEMENTATION FROM SCRATCH (LIFO)
- * ============================================================================ */
+/* Linked LIFO stack: push/pop change only the head pointer, so each is O(1). */
 
-/**
- * Initializes a new empty Stack on the heap.
- * Complexity: O(1) time | O(1) space
- */
 Stack* stack_create(void) {
     Stack *s = (Stack *)malloc(sizeof(Stack));
     if (!s) {
@@ -38,11 +23,6 @@ Stack* stack_create(void) {
     return s;
 }
 
-/**
- * Pushes a word onto the top of the Stack (LIFO insert).
- * Prepends a new StackNode before s->top.
- * Complexity: O(1) time | O(1) auxiliary space per node
- */
 bool stack_push(Stack *s, const char *word) {
     if (!s || !word) return false;
 
@@ -60,48 +40,45 @@ bool stack_push(Stack *s, const char *word) {
     return true;
 }
 
-/**
- * Pops and returns the top word from the Stack (LIFO remove).
- * Decouples the top node, updates s->top = s->top->next, and decrements count.
- * Returns a heap-allocated string copy that the caller must free().
- * Complexity: O(1) time | O(1) space
- */
 char* stack_pop(Stack *s) {
     if (!s || s->top == NULL) return NULL;
 
     StackNode *temp = s->top;
-    s->top = s->top->next;
-    s->count--;
-
     char *popped_word = (char *)malloc(strlen(temp->word) + 1);
-    if (popped_word) {
-        strcpy(popped_word, temp->word);
+    if (!popped_word) {
+        perror("Failed to allocate popped stack word");
+        return NULL;
     }
+
+    strcpy(popped_word, temp->word);
+    s->top = temp->next;
+    s->count--;
     free(temp);
     return popped_word;
 }
 
-/**
- * Inspects the top word without modifying the stack.
- * Complexity: O(1) time
- */
+static bool stack_move_top(Stack *source, Stack *destination, char *word_out) {
+    if (!source || !destination || !source->top) return false;
+
+    StackNode *node = source->top;
+    source->top = node->next;
+    source->count--;
+    node->next = destination->top;
+    destination->top = node;
+    destination->count++;
+    if (word_out) strcpy(word_out, node->word);
+    return true;
+}
+
 const char* stack_peek(const Stack *s) {
     if (!s || s->top == NULL) return NULL;
     return s->top->word;
 }
 
-/**
- * Returns true if the stack contains no elements.
- * Complexity: O(1) time
- */
 bool stack_is_empty(const Stack *s) {
     return (s == NULL || s->top == NULL);
 }
 
-/**
- * Empties all elements from the stack while preserving the stack container.
- * Complexity: O(K) where K is number of stacked items | O(1) auxiliary space
- */
 void stack_clear(Stack *s) {
     if (!s) return;
     StackNode *curr = s->top;
@@ -114,13 +91,10 @@ void stack_clear(Stack *s) {
     s->count = 0;
 }
 
-/**
- * Linear traversal of stack nodes to detect prior presence of a word (Cycle Check).
- * Complexity: O(K) where K is current stack depth | O(1) auxiliary space
- */
 bool stack_contains(const Stack *s, const char *word) {
     if (!s || !word) return false;
 
+    /* Cycle detection is a linear scan of the current undo/history stack. */
     char target[MAX_WORD_LEN];
     str_to_lower(target, word);
 
@@ -136,27 +110,14 @@ bool stack_contains(const Stack *s, const char *word) {
     return false;
 }
 
-/**
- * Deallocates all nodes and frees the Stack container.
- * Complexity: O(K) time
- */
 void stack_free(Stack *s) {
     if (!s) return;
     stack_clear(s);
     free(s);
 }
 
-/* ============================================================================
- * 2. GAME ENGINE & STATE MACHINE IMPLEMENTATION
- * ============================================================================ */
+/* Game Engine & State Machine Implementation */
 
-/**
- * Creates and initializes a complete GameState structure.
- * - Sanitizes start and target words to lowercase.
- * - Allocates both undo_stack and redo_stack (Dual-Stack architecture).
- * - Pushes start_word as baseline level 0 into undo_stack.
- * - Computes BFS optimal moves in advance to establish benchmark for telemetry.
- */
 GameState* game_create(Dictionary *dict, const char *start, const char *target) {
     if (!dict || !start || !target) return NULL;
 
@@ -177,7 +138,8 @@ GameState* game_create(Dictionary *dict, const char *start, const char *target) 
     game->total_redos = 0;
     game->dict = dict;
 
-    /* Initialize Dual-Stack History Architecture (Undo Stack + Redo Stack) */
+    /* Dual-stack history: undo stores the active path; redo stores moves popped
+     * by undo until a new move starts a different history branch. */
     game->undo_stack = stack_create();
     game->redo_stack = stack_create();
     if (!game->undo_stack || !game->redo_stack) {
@@ -186,28 +148,30 @@ GameState* game_create(Dictionary *dict, const char *start, const char *target) 
         free(game);
         return NULL;
     }
-    game->history_stack = game->undo_stack; /* Pointer alias for display rendering */
+    game->history_stack = game->undo_stack; /* Pointer alias */
 
-    /* Push start word as ground state of the undo stack */
-    stack_push(game->undo_stack, game->start_word);
+    /* Push start word to primary undo stack */
+    if (!stack_push(game->undo_stack, game->start_word)) {
+        stack_free(game->undo_stack);
+        stack_free(game->redo_stack);
+        free(game);
+        return NULL;
+    }
     game->total_pushes = 1;
 
-    /* Compute theoretical shortest path length upfront via Member 2's BFS */
+    /* Compute optimal shortest path length in advance via BFS */
     SolverMetrics metrics;
     char **path = solver_find_shortest_path(dict, game->start_word, game->target_word, &metrics);
     if (path) {
-        game->optimal_moves = metrics.path_length - 1; /* Number of moves = words - 1 */
+        game->optimal_moves = metrics.path_length - 1; /* Moves = words - 1 */
         solver_free_path(path, metrics.path_length);
     } else {
-        game->optimal_moves = -1; /* Unsolvable puzzle */
+        game->optimal_moves = -1; /* Unsolvable */
     }
 
     return game;
 }
 
-/**
- * Destroys the game instance, freeing both stacks and state structure.
- */
 void game_free(GameState *game) {
     if (!game) return;
     if (game->undo_stack) {
@@ -219,20 +183,6 @@ void game_free(GameState *game) {
     free(game);
 }
 
-/**
- * Executes a player's proposed word move.
- * Performs rigorous 5-step validation:
- *   1. Length matching
- *   2. Identity check
- *   3. Hamming distance metric (d_H == 1)
- *   4. Lexical existence check (Binary Search O(log N))
- *   5. Stack-based cycle detection
- *
- * State Changes:
- *   - Pushes clean_word to undo_stack in O(1)
- *   - Clears redo_stack (standard branching behavior)
- *   - Updates current_word and moves_count
- */
 bool game_make_move(GameState *game, const char *new_word, char *err_msg, size_t err_size, bool *out_cycle_warning) {
     if (!game || !new_word) return false;
 
@@ -240,17 +190,17 @@ bool game_make_move(GameState *game, const char *new_word, char *err_msg, size_t
         *out_cycle_warning = false;
     }
 
-    /* Check 1: Length matching before buffer copy */
-    if ((int)strlen(new_word) != game->word_len) {
+    char clean_word[MAX_WORD_LEN + 1];
+    str_to_lower(clean_word, new_word);
+
+    /* Check 1: Length matching */
+    if ((int)strlen(clean_word) != game->word_len) {
         if (err_msg) {
             snprintf(err_msg, err_size, "Word length mismatch: expected %d letters, got %lu.", 
-                     game->word_len, strlen(new_word));
+                     game->word_len, (unsigned long)strlen(clean_word));
         }
         return false;
     }
-
-    char clean_word[MAX_WORD_LEN + 1];
-    str_to_lower(clean_word, new_word);
 
     /* Check 2: Same word repeated */
     if (strcmp(clean_word, game->current_word) == 0) {
@@ -260,7 +210,7 @@ bool game_make_move(GameState *game, const char *new_word, char *err_msg, size_t
         return false;
     }
 
-    /* Check 3: Hamming Distance Metric (d_H must equal 1) */
+    /* Check 3: Hamming Distance Metric (d_H == 1) */
     int h_dist = word_difference_count(game->current_word, clean_word);
     if (h_dist != 1) {
         if (err_msg) {
@@ -270,7 +220,7 @@ bool game_make_move(GameState *game, const char *new_word, char *err_msg, size_t
         return false;
     }
 
-    /* Check 4: Dictionary validation via Member 1's Binary Search O(log N) */
+    /* Check 4: Dictionary validation via Binary Search */
     if (!dict_contains(game->dict, clean_word)) {
         if (err_msg) {
             snprintf(err_msg, err_size, "'%s' is not in the dictionary!", clean_word);
@@ -278,19 +228,24 @@ bool game_make_move(GameState *game, const char *new_word, char *err_msg, size_t
         return false;
     }
 
-    /* Check 5: Cycle / Loop Detection in active history stack */
+    /* Check 5: Detect revisiting a word by searching the active path stack. */
     if (stack_contains(game->undo_stack, clean_word)) {
         if (out_cycle_warning) {
             *out_cycle_warning = true;
         }
     }
 
-    /* Valid Move Commit:
-     * 1. Push new word to primary undo_stack (O(1))
-     * 2. Clear secondary redo_stack (O(K))
+    /* Valid move:
+     * 1. Push to primary undo stack
+     * 2. Clear secondary redo stack (standard text-editor/browser history semantics)
      * 3. Update current game state
      */
-    stack_push(game->undo_stack, clean_word);
+    if (!stack_push(game->undo_stack, clean_word)) {
+        if (err_msg) {
+            snprintf(err_msg, err_size, "Could not record move because memory allocation failed.");
+        }
+        return false;
+    }
     stack_clear(game->redo_stack);
 
     strcpy(game->current_word, clean_word);
@@ -303,30 +258,15 @@ bool game_make_move(GameState *game, const char *new_word, char *err_msg, size_t
     return true;
 }
 
-/**
- * Reverts the most recent move using the LIFO undo_stack.
- * Pops the current word from undo_stack and pushes it onto redo_stack in O(1).
- * Complexity: O(1) time | O(1) space
- */
 bool game_undo_move(GameState *game, char *reverted_word) {
     if (!game || !game->undo_stack) return false;
 
-    /* Stack must contain at least 2 items to undo (start word + at least 1 move) */
+    /* Preserve the initial word; move the current top to redo in O(1). */
     if (game->undo_stack->count <= 1) {
         return false;
     }
 
-    /* Pop current word from undo stack */
-    char *popped = stack_pop(game->undo_stack);
-    if (!popped) return false;
-
-    /* Push popped word onto redo stack for O(1) restoration */
-    stack_push(game->redo_stack, popped);
-
-    if (reverted_word) {
-        strcpy(reverted_word, popped);
-    }
-    free(popped);
+    if (!stack_move_top(game->undo_stack, game->redo_stack, reverted_word)) return false;
 
     /* Restore current word to the new top of undo stack */
     const char *previous = stack_peek(game->undo_stack);
@@ -339,28 +279,17 @@ bool game_undo_move(GameState *game, char *reverted_word) {
     return true;
 }
 
-/**
- * Restores the most recently undone move from redo_stack.
- * Pops from redo_stack and pushes back onto undo_stack in O(1).
- * Complexity: O(1) time | O(1) space
- */
 bool game_redo_move(GameState *game, char *restored_word) {
     if (!game || !game->redo_stack || stack_is_empty(game->redo_stack)) {
         return false;
     }
 
-    /* Pop from redo stack */
-    char *popped = stack_pop(game->redo_stack);
-    if (!popped) return false;
-
-    /* Push back onto undo stack */
-    stack_push(game->undo_stack, popped);
-
-    if (restored_word) {
-        strcpy(restored_word, popped);
+    /* Move the same node between stacks to keep undo/redo atomic without allocation. */
+    char restored[MAX_WORD_LEN];
+    if (!stack_move_top(game->redo_stack, game->undo_stack, restored_word ? restored_word : restored)) {
+        return false;
     }
-    strcpy(game->current_word, popped);
-    free(popped);
+    strcpy(game->current_word, restored_word ? restored_word : restored);
 
     game->moves_count++;
     game->total_redos++;
@@ -368,10 +297,6 @@ bool game_redo_move(GameState *game, char *restored_word) {
     return true;
 }
 
-/**
- * Evaluates the player's move efficiency against the BFS optimal baseline:
- *   Efficiency = (optimal_moves / actual_moves) * 100%
- */
 double game_get_efficiency(const GameState *game) {
     if (!game || game->optimal_moves <= 0 || game->moves_count <= 0) return 100.0;
 
@@ -380,9 +305,6 @@ double game_get_efficiency(const GameState *game) {
     return eff;
 }
 
-/**
- * Classifies player performance into achievement rank badges.
- */
 const char* game_get_rank(const GameState *game) {
     if (!game) return "Unknown";
 
@@ -400,9 +322,6 @@ const char* game_get_rank(const GameState *game) {
     }
 }
 
-/**
- * Checks if current word matches target word.
- */
 bool game_is_won(const GameState *game) {
     if (!game) return false;
     return (strcmp(game->current_word, game->target_word) == 0);

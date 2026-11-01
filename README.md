@@ -34,6 +34,9 @@ serves the files in `gui/`. Stop it with **Ctrl+C**.
 On Windows, you can also double-click `run.bat` from this folder. It starts
 the local server and opens the game in your browser.
 
+On macOS, double-click `run_gui.command` (or run `./run_gui.command`). It starts
+the local server and opens the game in your default browser.
+
 Alternatively, open `gui/index.html` directly. Running through the local
 server is recommended for a consistent browser experience.
 
@@ -114,11 +117,17 @@ not synced between browsers or devices. Clearing site data removes these saves.
 The browser implementation is in `gui/dsa-engine.js`; its interface and
 gameplay controller are in `gui/index.html`, `gui/style.css`, and `gui/app.js`.
 The standalone C implementation and its own documentation are in
-[`dsa-WordBridge/`](dsa-WordBridge/). Its terminal game has separate saves
+[`dsa-wordBridge-terminal/`](dsa-wordBridge-terminal/). Its terminal game has separate saves
 (none are shared with the browser game) and provides its own play, solver,
 benchmark, and DSA overview menu options.
 
 ## Run the C console version
+
+On macOS, you can double-click `run_terminal.command` (or run `./run_terminal.command`) to compile and launch the terminal game automatically.
+On Windows, you can double-click `run_terminal.bat`.
+
+On macOS, you can double-click `run_terminal.command` (or run `./run_terminal.command`) to compile and launch the terminal game automatically.
+On Windows, you can double-click `run_terminal.bat`.
 
 ### Requirements
 
@@ -128,7 +137,7 @@ benchmark, and DSA overview menu options.
 From the main project folder:
 
 ```powershell
-cd dsa-WordBridge
+cd dsa-wordBridge-terminal
 mingw32-make
 .\wordbridge.exe
 ```
@@ -136,8 +145,8 @@ mingw32-make
 If Make is unavailable, compile with GCC directly from the main project folder:
 
 ```powershell
-gcc -std=c99 -Wall -Wextra -O2 -Iinclude dsa-WordBridge/src/main.c dsa-WordBridge/src/dictionary.c dsa-WordBridge/src/solver.c dsa-WordBridge/src/game.c dsa-WordBridge/src/display.c -o dsa-WordBridge/wordbridge.exe
-cd dsa-WordBridge
+gcc -std=c99 -Wall -Wextra -O2 -Iinclude dsa-wordBridge-terminal/src/main.c dsa-wordBridge-terminal/src/dictionary.c dsa-wordBridge-terminal/src/solver.c dsa-wordBridge-terminal/src/game.c dsa-wordBridge-terminal/src/display.c -o dsa-wordBridge-terminal/wordbridge.exe
+cd dsa-wordBridge-terminal
 .\wordbridge.exe
 ```
 
@@ -157,7 +166,7 @@ The C core tests cover BFS paths, queue order, and game undo/redo. From the
 project folder, run:
 
 ```powershell
-cd dsa-WordBridge
+cd dsa-wordBridge-terminal
 mingw32-make test
 ```
 
@@ -168,13 +177,16 @@ On systems where GNU Make is available as `make`, use `make test`.
 ```text
 dsa-WordBridge/
 ├── README.md
-├── run.bat                 # Start the browser game on Windows
-├── server.js               # Zero-dependency local web server
-├── gui/                    # Browser game and JavaScript DSA engine
-├── tests/                  # Node.js DSA engine tests
-├── screenshots/            # README screenshots
-├── include/                # C headers
-└── dsa-WordBridge/          # C sources, dictionary data, and Makefile
+├── run_gui.command             # One-click browser game launcher (macOS)
+├── run_terminal.command        # One-click terminal game launcher (macOS)
+├── run.bat                     # Start the browser game on Windows
+├── run_terminal.bat            # Start the terminal game on Windows
+├── server.js                   # Zero-dependency local web server
+├── gui/                        # Browser game and JavaScript DSA engine
+├── tests/                      # Node.js DSA engine tests
+├── screenshots/                # README screenshots
+├── include/                    # C headers
+└── dsa-wordBridge-terminal/    # C sources, dictionary data, and Makefile
     ├── data/
     └── src/
 ```
