@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordBridge — Word Ladder Puzzle & DSA Auto-Solver</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Gentium+Plus:ital,wght@0,400;0,700;1,400&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌉</text></svg>">
+</head>
+<body data-theme="light">
+    <!-- Canvas for Confetti particle explosion -->
+    <canvas id="confetti-canvas"></canvas>
+    <div class="ambient-letters" aria-hidden="true">
+        <span>W</span><span>B</span><span>A</span><span>R</span><span>D</span>
+    </div>
+
+    <!-- Top Application Header -->
+    <header class="app-header">
+        <div class="brand-section">
+            <div class="logo-badge">W</div>
+            <div>
+                <h1 class="brand-title">WORD<span class="highlight">BRIDGE</span></h1>
+            </div>
+        </div>
+
+        <nav class="nav-tabs">
+            <button class="nav-tab-btn active" id="play-nav-btn">Play</button>
+            <button class="nav-tab-btn" id="levels-nav-btn">Levels</button>
+            <button class="nav-tab-btn" id="daily-nav-btn">Daily</button>
+            <button class="nav-tab-btn" id="stats-nav-btn">Stats</button>
+            <button class="nav-tab-btn" id="challenges-nav-btn">Challenges <span class="nav-count">(53)</span></button>
+            <button class="nav-tab-btn" id="random-nav-btn">Random</button>
+        </nav>
+
+        <div class="header-actions">
+            <button class="btn btn-secondary solver-toggle-btn" id="solver-toggle-btn" type="button" title="Open the solver (Learn mode)" aria-label="Open solver in Learn mode" aria-controls="auto-solver-section" aria-expanded="false" aria-pressed="false">Solver</button>
+            <button class="icon-btn" id="help-btn" type="button" title="How to Play & Shortcuts" aria-label="How to Play and keyboard shortcuts">❓</button>
+            <button class="icon-btn" id="accessibility-btn" title="Accessibility settings" aria-label="Accessibility settings">♿</button>
+            <button class="icon-btn" id="sound-toggle-btn" type="button" title="Toggle sound" aria-label="Toggle sound">🔊</button>
+        </div>
+    </header>
+
+    <!-- Main Game Workspace -->
+    <main class="main-content">
+        <aside class="workspace-rail" aria-label="Campaign overview">
+            <section class="rail-card">
+                <span class="rail-kicker">YOUR CAMPAIGN</span>
+                <span class="rail-level-number" id="rail-level-number">01</span>
+                <span class="rail-level-label" id="rail-level-label">LEVEL 1</span>
+                <span class="rail-word-pair" id="rail-word-pair">CAT <span>→</span> DOG</span>
+                <div class="rail-progress-track" role="progressbar" aria-label="Campaign completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <span class="rail-progress-fill" id="rail-progress-fill"></span>
+                </div>
+                <span class="rail-progress-label" id="rail-progress-label">0 of 53 levels complete</span>
+            </section>
+            <section class="rail-card rail-daily-card">
+                <span class="rail-kicker">DAILY STREAK</span>
+                <strong class="rail-streak-value" id="rail-streak-value">0 days</strong>
+                <span class="rail-progress-label">Keep your bridge-building streak alive.</span>
+            </section>
+        </aside>
+
+        <!-- LEFT COLUMN: Interactive Game Board -->
+        <section class="glass-panel game-board-section">
+            <!-- Mission & Target Status Bar -->
+            <div class="mission-bar">
+                <div class="mission-target-badge">
+                    <span class="mission-label">TARGET</span>
+                    <span class="target-word-pill" id="target-word-pill">WARM</span>
+                    <span class="distance-badge" id="distance-badge">3 to change</span>
+                </div>
+
+                <div class="telemetry-strip">
+                    <div class="telemetry-item" id="moves-telemetry">
+                        <span class="telemetry-val" id="move-count-val">0</span>
+                        <span class="telemetry-lbl">Moves</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-val" id="optimal-val">4</span>
+                        <span class="telemetry-lbl">Optimal</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-val" id="eff-badge" style="color: var(--accent-emerald);">100%</span>
+                        <span class="telemetry-lbl">Efficiency</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-val" id="timer-val">00:00</span>
+                        <span class="telemetry-lbl">Timer</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="start-goal-block" id="start-goal-block" aria-label="Start and goal words">
+                <div class="start-goal-row">
+                    <span class="mission-label">START</span>
+                    <div class="start-goal-tiles" id="start-word-tiles" aria-label="Start word"></div>
+                </div>
+                <span class="start-goal-arrow" aria-hidden="true">→</span>
+                <div class="start-goal-row">
+                    <span class="mission-label">GOAL</span>
+                    <div class="start-goal-tiles" id="goal-word-tiles" aria-label="Goal word"></div>
+                </div>
+            </div>
+
+            <!-- Ladder Path History Viewport -->
+            <div class="ladder-viewport" id="ladder-viewport" role="list" aria-label="Word ladder history" hidden>
+                <!-- Dynamically populated step capsules -->
+            </div>
+
+            <!-- Current word editor and on-screen keyboard -->
+            <div class="current-word-zone">
+                <div class="current-word-heading">
+                    <span class="mission-label">CURRENT WORD</span>
+                    <span class="step-guide-hint">Select a tile, then enter a letter</span>
+                </div>
+
+                <div class="tiles-interactive-row" id="tiles-interactive-row">
+                    <!-- Interactive tiles generated dynamically -->
+                </div>
+
+                <div class="current-status-message info" id="status-msg" aria-live="polite">
+                    Transform [COLD] into [WARM]! Click any tile to change a letter.
+                </div>
+
+                <div class="virtual-keyboard" id="virtual-keyboard" aria-label="On-screen keyboard">
+                    <!-- Keys rendered via app.js -->
+                </div>
+            </div>
+
+            <!-- Game Action Controls -->
+            <div class="game-controls-bar">
+                <div class="btn-group">
+                    <button class="btn btn-secondary" id="undo-btn" title="Undo Last Move (Ctrl+Z)">
+                        ↩ Undo <span class="badge-count" id="undo-count-badge">0</span>
+                    </button>
+                    <button class="btn btn-secondary" id="redo-btn" title="Redo Move (Ctrl+Y)">
+                        ↪ Redo <span class="badge-count" id="redo-count-badge">0</span>
+                    </button>
+                    <button class="btn btn-secondary" id="hint-btn" title="Get Optimal Next Move Hint">
+                        Hint
+                    </button>
+                    <button class="btn btn-secondary" id="restart-btn" title="Restart Current Puzzle">
+                        Reset
+                    </button>
+                </div>
+
+                <div class="game-controls-actions">
+                    <button class="btn btn-secondary" id="solve-btn" title="Solve with BFS & Replay with Doubly Linked List">
+                        Auto-Solve & Replay
+                    </button>
+                    <button class="btn btn-secondary" id="give-up-btn" type="button" title="Give up this puzzle and reveal the BFS solution">
+                        Give up
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- RIGHT COLUMN: Dedicated Auto-Solver & Path Explorer -->
+        <section class="glass-panel auto-solver-section" id="auto-solver-section" aria-label="BFS Path Explorer">
+            <div class="solver-header-bar">
+                <div class="solver-title-group">
+                    <div class="solver-icon-wrap" aria-hidden="true">BFS</div>
+                    <div>
+                        <div class="solver-title-row">
+                            <h2 class="solver-panel-title">BFS Path Explorer</h2>
+                            <span class="solver-pill-badge" id="solver-status-pill">● Optimal Path Guaranteed</span>
+                        </div>
+                        <div class="solver-panel-subtitle">Shortest path · unweighted word graph</div>
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-solver-action" id="panel-solve-btn" title="Compute shortest word ladder path">
+                    Solve Path
+                </button>
+                <button class="btn btn-secondary solver-drawer-close" id="solver-drawer-close" type="button" aria-label="Close solver drawer" title="Close solver">✕</button>
+            </div>
+
+            <!-- Stepper & Solution Path Container -->
+            <div class="solver-stepper-card">
+                <!-- Stepper Progress & Controller Bar -->
+                <div class="stepper-ctrl-bar">
+                    <div class="stepper-info-box">
+                        <span class="stepper-kicker">SOLUTION SEQUENCE</span>
+                        <div class="stepper-counter-row">
+                            <span class="stepper-step-indicator" id="replay-step-indicator">Step 1 of 5</span>
+                        </div>
+                    </div>
+
+                    <div class="stepper-progress-wrap">
+                        <div class="stepper-progress-track">
+                            <div class="stepper-progress-fill" id="replay-progress-fill" style="width: 20%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="stepper-btn-group">
+                        <button class="btn btn-secondary btn-icon-ctrl" id="replay-first-btn" title="Jump to Start">⏮</button>
+                        <button class="btn btn-secondary btn-icon-ctrl" id="replay-prev-btn" title="Previous Step" disabled>◀</button>
+                        <button class="btn btn-primary btn-play-ctrl" id="replay-play-btn" title="Auto-Play sequence" aria-pressed="false" disabled>
+                            <span id="play-btn-label">▶ Auto-Play</span>
+                        </button>
+                        <button class="btn btn-secondary btn-icon-ctrl" id="replay-next-btn" title="Next Step" disabled>▶</button>
+                        <button class="btn btn-secondary btn-icon-ctrl" id="replay-last-btn" title="Jump to Target">⏭</button>
+                        <button class="btn btn-primary" id="solver-next-level-btn" type="button" style="display: none; padding: 6px 14px; font-size: 13px; font-weight: 700; background: #16a34a; border-color: #15803d; color: #fff;">Next Level ▶</button>
+                        <label class="playback-speed-control" title="Playback speed">
+                            <span class="sr-only">Playback speed</span>
+                            <select id="playback-speed-select" aria-label="Playback speed">
+                                <option value="1400">0.5×</option>
+                                <option value="850" selected>1×</option>
+                                <option value="560">1.5×</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Word Chain Sequence / Stepper Cards Scroll Track -->
+                <div class="node-chain-scroll-area">
+                    <div class="node-chain-view" id="node-chain-view">
+                        <!-- Dynamic step cards generated by app.js -->
+                    </div>
+                </div>
+
+                <!-- Step Inspector / Move Diff banner -->
+                <div class="step-diff-inspector" id="step-diff-inspector">
+                    <span class="diff-text" id="step-diff-text">Click any card above to preview or navigate steps.</span>
+                </div>
+            </div>
+
+            <!-- Minimal Auto-Solver: Heavy telemetry & graph collapsed by default -->
+            <details class="solver-advanced-details" id="solver-advanced-details">
+                <summary class="solver-advanced-summary">
+                    <span>📊 View Search Telemetry & BFS Graph Exploration</span>
+                    <span class="solver-advanced-pill">Details</span>
+                </summary>
+                <div class="solver-advanced-content">
+                    <!-- Telemetry & Performance Metrics Grid -->
+                    <div class="solver-telemetry-box" id="solver-telemetry-card">
+                        <div class="metrics-grid-live">
+                            <div class="telemetry-stat-card">
+                                <span class="t-stat-label">Path Words</span>
+                                <span class="t-stat-val">--</span>
+                            </div>
+                            <div class="telemetry-stat-card">
+                                <span class="t-stat-label">Optimal Moves</span>
+                                <span class="t-stat-val">--</span>
+                            </div>
+                            <div class="telemetry-stat-card">
+                                <span class="t-stat-label">Nodes Explored</span>
+                                <span class="t-stat-val">--</span>
+                            </div>
+                            <div class="telemetry-stat-card">
+                                <span class="t-stat-label">Compute Time</span>
+                                <span class="t-stat-val">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bfs-exploration-panel" id="bfs-exploration-panel">
+                        <div class="bfs-exploration-header">
+                            <strong>BFS exploration order</strong>
+                            <span class="bfs-exploration-count" id="bfs-exploration-count">Solve to explore the word graph</span>
+                        </div>
+                        <p class="bfs-exploration-description">Words are visited breadth-first. Words on the same depth are equally far from the start.</p>
+                        <div class="bfs-playback-controls" role="group" aria-label="BFS exploration playback">
+                            <button class="btn btn-secondary btn-icon-ctrl" id="bfs-exploration-prev" type="button" title="Previous explored word" disabled>◀</button>
+                            <button class="btn btn-primary btn-play-ctrl" id="bfs-exploration-play" type="button" title="Play BFS exploration" aria-pressed="false" disabled>▶ Explore</button>
+                            <button class="btn btn-secondary btn-icon-ctrl" id="bfs-exploration-next" type="button" title="Explore next word" disabled>▶</button>
+                            <div class="bfs-exploration-progress-wrap">
+                                <span class="bfs-playback-status" id="bfs-playback-status" aria-live="polite">Solve a path to inspect the search.</span>
+                                <div class="bfs-exploration-progress" id="bfs-exploration-progress" role="progressbar" aria-label="BFS exploration progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                                    <span class="bfs-exploration-progress-fill" id="bfs-exploration-progress-fill"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bfs-exploration-legend" aria-label="BFS word states">
+                            <span class="legend-queued">Queued</span>
+                            <span class="legend-explored">Explored</span>
+                            <span class="legend-path">Shortest path</span>
+                        </div>
+                        <ol class="bfs-exploration-list" id="bfs-exploration-list" aria-label="Words explored by breadth-first search"></ol>
+                        <button class="btn btn-secondary bfs-exploration-more" id="bfs-exploration-more" type="button" hidden>Show more explored words</button>
+                    </div>
+                </div>
+            </details>
+
+            <!-- Walkthrough Helper Footer -->
+            <div class="solver-walkthrough-footer">
+                <span>Click any word card to jump to that step, or click <strong>▶ Auto-Play</strong> to step through on the board.</span>
+            </div>
+        </section>
+
+        <section class="game-flow-guide" aria-label="Quick play guide">
+            <div class="game-flow-heading">
+                <span>QUICK PLAY GUIDE</span>
+                <span>Build your bridge one letter at a time</span>
+            </div>
+            <ol class="game-flow-steps">
+                <li>
+                    <span class="game-flow-number">01</span>
+                    <span><strong>Pick a tile</strong><small>Choose a letter to edit</small></span>
+                </li>
+                <li>
+                    <span class="game-flow-number">02</span>
+                    <span><strong>Make a real word</strong><small>Change just one letter</small></span>
+                </li>
+                <li>
+                    <span class="game-flow-number">03</span>
+                    <span><strong>Reach the goal</strong><small>Use the fewest moves</small></span>
+                </li>
+            </ol>
+            <button class="game-flow-dismiss" id="game-flow-dismiss-btn" type="button" title="Dismiss quick play guide" aria-label="Dismiss quick play guide">✕</button>
+        </section>
+
+        <aside class="progress-sidebar" aria-label="Player progress">
+            <section class="sidebar-card">
+                <div class="sidebar-card-heading">
+                    <span class="rail-kicker">CAMPAIGN</span>
+                    <span class="sidebar-live-dot" aria-hidden="true"></span>
+                </div>
+                <strong class="sidebar-stat-number" id="dashboard-level-progress">0 / 53</strong>
+                <span class="sidebar-caption">levels completed</span>
+                <div class="sidebar-progress-track" role="progressbar" aria-label="Campaign completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <span id="dashboard-progress-fill"></span>
+                </div>
+            </section>
+
+            <section class="sidebar-card">
+                <div class="sidebar-card-heading">
+                    <span class="rail-kicker">RECENT GOALS</span>
+                    <span class="sidebar-heading-icon" aria-hidden="true">↗</span>
+                </div>
+                <ul class="recent-goals-list" id="dashboard-recent-goals" aria-live="polite">
+                    <li class="sidebar-empty-state">Complete a campaign level to see it here.</li>
+                </ul>
+            </section>
+
+            <section class="sidebar-card">
+                <div class="sidebar-card-heading">
+                    <span class="rail-kicker">ACHIEVEMENTS</span>
+                    <span class="sidebar-heading-icon" aria-hidden="true">✦</span>
+                </div>
+                <strong class="sidebar-stat-number" id="dashboard-achievement-count">0 / 5</strong>
+                <div class="achievement-mini-list" id="dashboard-achievement-list" aria-live="polite"></div>
+            </section>
+
+            <section class="sidebar-card">
+                <div class="sidebar-card-heading">
+                    <span class="rail-kicker">YOUR STATS</span>
+                    <span class="sidebar-heading-icon" aria-hidden="true">⌁</span>
+                </div>
+                <div class="sidebar-stat-row">
+                    <span>Puzzles solved</span><strong id="dashboard-completed-stat">0</strong>
+                </div>
+                <div class="sidebar-stat-row">
+                    <span>Win rate</span><strong id="dashboard-win-rate-stat">—</strong>
+                </div>
+                <div class="sidebar-stat-row">
+                    <span>Best time</span><strong id="dashboard-best-time-stat">—</strong>
+                </div>
+                <p class="sidebar-storage-note" id="dashboard-storage-note">Stats are saved in this browser.</p>
+            </section>
+        </aside>
+    </main>
+    <button class="solver-drawer-backdrop" id="solver-drawer-backdrop" type="button" aria-label="Close solver drawer" hidden></button>
+
+
+    <!-- How to Play & Help Modal -->
+    <div class="modal-backdrop" id="help-modal">
+        <section class="modal-card help-modal-card" role="dialog" aria-modal="true" aria-labelledby="help-title">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                <h2 class="modal-title" id="help-title">How to Play WordBridge</h2>
+                <button class="btn btn-secondary modal-close-btn" aria-label="Close help" style="padding: 4px 10px; font-size: 14px;">✕</button>
+            </div>
+            <div class="modal-subtitle">Transform the start word into the goal word, one letter at a time:</div>
+
+            <div class="rules-guide-grid">
+                <div class="rule-card">
+                    <div class="rule-badge">1</div>
+                    <div class="rule-body">
+                        <h4>Select a Letter</h4>
+                        <p>Click or focus a tile in the current word to choose which position to edit. Use the left and right arrow keys to move between tiles.</p>
+                    </div>
+                </div>
+                <div class="rule-card">
+                    <div class="rule-badge">2</div>
+                    <div class="rule-body">
+                        <h4>Change 1 Letter</h4>
+                        <p>Type a letter on your keyboard or tap an on-screen key. The result must be a real English dictionary word!</p>
+                    </div>
+                </div>
+                <div class="rule-card">
+                    <div class="rule-badge">3</div>
+                    <div class="rule-body">
+                        <h4>Reach the Goal</h4>
+                        <p>Keep bridging words step-by-step until you reach the target word in the fewest moves!</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="shortcuts-helper-box">
+                <div class="shortcut-chip"><kbd>A-Z</kbd> Change Letter</div>
+                <div class="shortcut-chip"><kbd>← / →</kbd> Select Tile</div>
+                <div class="shortcut-chip"><kbd>Enter ⏎</kbd> Submit Move</div>
+                <div class="shortcut-chip"><kbd>⌫ Backspace</kbd> Revert Tile</div>
+                <div class="shortcut-chip"><kbd>Ctrl+Z</kbd> Undo</div>
+                <div class="shortcut-chip"><kbd>Ctrl+Y</kbd> Redo</div>
+            </div>
+
+            <button class="btn btn-primary modal-close-btn" style="width: 100%; justify-content: center; margin-top: 10px; padding: 12px; font-size: 15px;">
+                Got It! Let's Play
+            </button>
+        </section>
+    </div>
+
+    <!-- Preset Challenges & Custom Word Modal -->
+    <div class="modal-backdrop" id="challenge-modal">
+        <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="challenge-title">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                <h2 class="modal-title" id="challenge-title">WordBridge Challenges & Custom Puzzle</h2>
+                <button class="btn btn-primary" id="modal-random-btn" style="padding: 6px 14px; font-size: 13px;">Roll Random</button>
+            </div>
+            <div class="modal-subtitle">Design your own custom word bridge or explore 53 curated campaign challenges:</div>
+
+            <!-- Prominent Custom Puzzle Section at the TOP -->
+            <div class="custom-puzzle-box prominent-custom-box" id="prominent-custom-box">
+                <div class="custom-box-header">
+                    <span class="custom-sparkle-badge">✨ PROMINENT CUSTOM PUZZLE CREATOR</span>
+                    <h3 class="custom-box-title">Create Your Own Word Ladder</h3>
+                    <p class="custom-box-desc">Choose any two valid words of equal length (3–6 letters) to solve manually or test BFS shortest path:</p>
+                </div>
+
+                <!-- Quick Idea Chips -->
+                <div class="custom-preset-chips" id="custom-preset-chips" aria-label="Suggested word pairs">
+                    <span class="chips-label">Quick pairs:</span>
+                    <button type="button" class="preset-chip" data-start="FLOUR" data-target="BREAD">FLOUR → BREAD</button>
+                    <button type="button" class="preset-chip" data-start="STONE" data-target="MONEY">STONE → MONEY</button>
+                    <button type="button" class="preset-chip" data-start="RIVER" data-target="SHORE">RIVER → SHORE</button>
+                    <button type="button" class="preset-chip" data-start="COLD" data-target="WARM">COLD → WARM</button>
+                    <button type="button" class="preset-chip" data-start="CAT" data-target="DOG">CAT → DOG</button>
+                </div>
+
+                <div class="custom-input-group">
+                    <div class="custom-field-col">
+                        <label for="custom-start-input" class="custom-input-label">Start Word</label>
+                        <input type="text" class="search-field custom-text-input" id="custom-start-input" placeholder="e.g. FLOUR" maxlength="6" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div class="custom-arrow-icon" aria-hidden="true">➔</div>
+                    <div class="custom-field-col">
+                        <label for="custom-target-input" class="custom-input-label">Target Word</label>
+                        <input type="text" class="search-field custom-text-input" id="custom-target-input" placeholder="e.g. BREAD" maxlength="6" autocomplete="off" spellcheck="false">
+                    </div>
+                </div>
+                <div id="custom-error-msg" class="custom-error-alert" role="alert"></div>
+                <button class="btn btn-primary" id="start-custom-btn" style="width: 100%; justify-content: center; font-size: 15px; font-weight: 700; padding: 12px; margin-top: 4px;">🚀 Launch Custom Puzzle</button>
+            </div>
+
+            <!-- Visual Divider -->
+            <div class="challenge-divider">
+                <span>OR CHOOSE FROM 53 CURATED LADDERS</span>
+            </div>
+
+            <!-- Difficulty Filter Bar -->
+            <div class="challenge-filter-bar" id="challenge-filter-bar">
+                <button class="filter-tab active" data-len="all">All (53)</button>
+                <button class="filter-tab" data-len="3">3 Letters (14)</button>
+                <button class="filter-tab" data-len="4">4 Letters (20)</button>
+                <button class="filter-tab" data-len="5">5 Letters (14)</button>
+                <button class="filter-tab" data-len="6">6 Letters (5)</button>
+            </div>
+
+            <div class="challenge-grid" id="challenge-grid">
+                <!-- Populated via app.js -->
+            </div>
+
+            <button class="btn btn-secondary modal-close-btn" style="width: 100%; justify-content: center; margin-top: 8px;">Close</button>
+        </section>
+    </div>
+
+    <!-- Give Up Confirmation Modal -->
+    <div class="modal-backdrop" id="give-up-modal">
+        <section class="modal-card give-up-modal-card" role="dialog" aria-modal="true" aria-labelledby="give-up-title" style="max-width: 440px; text-align: center;">
+            <div style="font-size: 44px; margin-bottom: 8px;" aria-hidden="true">🏳️</div>
+            <h2 class="modal-title" id="give-up-title" style="justify-content: center; font-size: 20px;">Are you sure you want to give up?</h2>
+            <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.5; margin: 12px 0 20px;">
+                The BFS auto-solver will find and demonstrate the optimal shortest-path solution step by step.
+            </p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button class="btn btn-secondary modal-close-btn" id="cancel-give-up-btn" style="flex: 1; justify-content: center;">Keep Trying</button>
+                <button class="btn btn-primary" id="confirm-give-up-btn" style="flex: 1; justify-content: center; background: #e11d48; border-color: #be123c; color: #fff;">Yes, Give Up</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="modal-backdrop" id="levels-modal">
+        <section class="modal-card levels-modal-card" role="dialog" aria-modal="true" aria-labelledby="levels-title">
+            <div class="levels-modal-heading">
+                <div>
+                    <h2 class="modal-title" id="levels-title">WordBridge Campaign</h2>
+                    <p class="stats-intro">Solve a level to unlock the next one. Completed levels can be replayed.</p>
+                </div>
+                <button class="btn btn-secondary stats-close-btn" id="levels-close-btn" aria-label="Close levels">✕</button>
+            </div>
+            <div class="levels-progress-summary">
+                <div class="levels-progress-copy">
+                    <span id="levels-progress-label">Level 1 of 53 unlocked</span>
+                    <span id="levels-completed-label">0 completed</span>
+                </div>
+                <div class="levels-progress-track">
+                    <div class="levels-progress-fill" id="levels-progress-fill"></div>
+                </div>
+            </div>
+            <p class="levels-storage-note" id="levels-storage-note">Campaign progress is saved in this browser.</p>
+            <div class="level-list" id="level-list"></div>
+            <div class="stats-modal-actions">
+                <button class="btn btn-secondary modal-close-btn">Close</button>
+                <button class="btn btn-primary" id="continue-level-btn">Continue Level 1</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="modal-backdrop" id="stats-modal">
+        <section class="modal-card stats-modal-card" role="dialog" aria-modal="true" aria-labelledby="stats-title">
+            <div class="stats-modal-heading">
+                <div>
+                    <h2 class="modal-title" id="stats-title">Your Progress</h2>
+                    <p class="stats-intro">A snapshot of your WordBridge puzzle history.</p>
+                </div>
+                <button class="btn btn-secondary stats-close-btn" id="stats-close-btn" aria-label="Close stats">✕</button>
+            </div>
+            <div class="personal-stats-grid" aria-live="polite">
+                <div class="personal-stat-card">
+                    <span class="personal-stat-value" id="stats-completed">0</span>
+                    <span class="personal-stat-label">Puzzles completed</span>
+                </div>
+                <div class="personal-stat-card">
+                    <span class="personal-stat-value" id="stats-best-time">—</span>
+                    <span class="personal-stat-label">Best solve time</span>
+                </div>
+                <div class="personal-stat-card">
+                    <span class="personal-stat-value" id="stats-average-moves">—</span>
+                    <span class="personal-stat-label">Average moves</span>
+                </div>
+                <div class="personal-stat-card">
+                    <span class="personal-stat-value" id="stats-win-rate">—</span>
+                    <span class="personal-stat-label">Win rate</span>
+                </div>
+            </div>
+            <section class="achievements-section" aria-labelledby="achievements-title">
+                <div class="achievements-heading">
+                    <div>
+                        <h3 id="achievements-title">🏅 Achievements</h3>
+                        <p id="achievements-progress">0 of 5 unlocked</p>
+                    </div>
+                </div>
+                <div class="achievements-grid" id="achievements-grid" aria-live="polite"></div>
+                <p class="achievements-storage-note" id="achievements-storage-note">Achievement progress is saved in this browser.</p>
+            </section>
+            <p class="stats-storage-note" id="stats-storage-note">Stats are saved only in this browser. Resetting stats does not erase achievements.</p>
+            <div class="stats-modal-actions">
+                <input type="file" id="import-stats-file" accept=".json,application/json" hidden>
+                <button class="btn btn-secondary" id="save-stats-btn" title="Download or copy your stats as a backup">💾 Save Stats</button>
+                <button class="btn btn-secondary" id="load-stats-btn" title="Restore stats from a file or backup">📥 Load Stats</button>
+                <button class="btn btn-secondary" id="reset-stats-btn">Reset stats</button>
+                <button class="btn btn-primary" id="stats-done-btn">Done</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="modal-backdrop" id="accessibility-modal">
+        <section class="modal-card accessibility-modal-card" role="dialog" aria-modal="true" aria-labelledby="accessibility-title">
+            <div class="stats-modal-heading">
+                <div>
+                    <h2 class="modal-title" id="accessibility-title">Accessibility settings</h2>
+                    <p class="stats-intro">Adjust sound, animation, and contrast for this browser.</p>
+                </div>
+                <button class="btn btn-secondary stats-close-btn" id="accessibility-close-btn" aria-label="Close accessibility settings">✕</button>
+            </div>
+            <div class="accessibility-options">
+                <label class="accessibility-option" for="sound-preference-toggle">
+                    <span><strong>Game sounds</strong><small>Play sound effects for moves and wins.</small></span>
+                    <input type="checkbox" id="sound-preference-toggle">
+                </label>
+                <label class="accessibility-option" for="motion-preference-toggle">
+                    <span><strong>Reduce motion</strong><small>Limit animations and skip confetti.</small></span>
+                    <input type="checkbox" id="motion-preference-toggle">
+                </label>
+                <label class="accessibility-option" for="contrast-preference-toggle">
+                    <span><strong>High contrast</strong><small>Strengthen text and control borders.</small></span>
+                    <input type="checkbox" id="contrast-preference-toggle">
+                </label>
+            </div>
+            <p class="accessibility-storage-note" id="accessibility-storage-note">Preferences are saved in this browser.</p>
+            <div class="stats-modal-actions">
+                <button class="btn btn-primary" id="accessibility-done-btn">Done</button>
+            </div>
+        </section>
+    </div>
+
+    <!-- Victory Celebration Modal -->
+    <div class="modal-backdrop" id="win-modal">
+        <section class="modal-card win-content" role="dialog" aria-modal="true" aria-labelledby="win-title">
+            <div class="win-icon" aria-hidden="true">✓</div>
+            <h2 class="modal-title" id="win-title" style="color: var(--accent-emerald);">PUZZLE SOLVED!</h2>
+            <div class="modal-subtitle">You transformed the ladder with algorithmic precision!</div>
+            <section class="victory-path-wrap" aria-label="Your completed word path">
+                <span class="victory-path-label">YOUR PATH</span>
+                <ol class="victory-path" id="win-path"></ol>
+            </section>
+
+            <div class="rank-badge" id="win-rank-badge">
+                Grandmaster of Ladders
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <span class="stat-number" id="win-moves">4</span>
+                    <span class="stat-label">Your Moves</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-number" id="win-optimal">4</span>
+                    <span class="stat-label">Optimal BFS</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-number" id="win-efficiency" style="color: var(--accent-emerald);">100%</span>
+                    <span class="stat-label">Efficiency</span>
+                </div>
+            </div>
+
+            <div style="font-size: 13px; color: var(--text-secondary);">
+                Time elapsed: <strong id="win-time" style="color: var(--text-primary);">12s</strong>
+            </div>
+            <p class="win-result-summary" id="win-result-summary"></p>
+            <div id="win-daily-streak" class="daily-win-note" hidden></div>
+            <div id="win-achievements-note" class="daily-win-note" hidden aria-live="polite"></div>
+            <p class="win-share-status" id="win-share-status" aria-live="polite"></p>
+
+            <div class="win-modal-actions">
+                <button class="btn btn-secondary" id="win-share-btn" type="button">Share</button>
+                <button class="btn btn-secondary modal-close-btn" style="flex: 1; justify-content: center;">Review Board</button>
+                <button class="btn btn-primary" id="win-next-btn" style="flex: 1; justify-content: center;">Next Level ▶</button>
+            </div>
+        </section>
+    </div>
+
+    <!-- Script imports in correct dependency order -->
+    <script src="dictionary-data.js"></script>
+    <script src="dsa-engine.js"></script>
+    <script src="audio.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
