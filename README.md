@@ -13,18 +13,9 @@ The project contains two implementations:
   core data structures and algorithms. It has its own menus and progress; it
   does not share browser saves.
 
-## Screenshots
 
-![WordBridge gameplay](screenshots/wordbridge-gameplay.png)
 
-The browser game adapts to smaller screens. The screenshot shows the game
-running locally in a browser.
 
-The browser interface uses a restrained dark slate palette with mint accents,
-a responsive on-screen QWERTY keyboard, and a side-by-side game board and BFS
-explorer on wider screens. On narrow screens, the solver moves below the board.
-
-## Run the browser game
 
 ### Requirements
 
